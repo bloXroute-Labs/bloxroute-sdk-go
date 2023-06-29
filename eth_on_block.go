@@ -87,10 +87,11 @@ type OnBlockParamsBlockNumber struct {
 }
 
 // OnBlock subscribes to stream of changes in the EVM state when a new block is mined
-func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFunc CallbackFunc) error {
+func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, cb CallbackFunc) error {
 	if params == nil {
 		return fmt.Errorf("params is nil or empty")
 	}
+
 	if len(params.CallParams) == 0 {
 		return fmt.Errorf("at least one call_params is required")
 	}
@@ -100,13 +101,12 @@ func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFun
 		return fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	subRequest := &jsonrpc2.Request{
+	subReq := &jsonrpc2.Request{
 		ID:     randomID(),
 		Method: string(jsonrpc.RPCSubscribe),
 		Params: (*json.RawMessage)(&raw),
 	}
-
-	return c.subscribe(ctx, types.OnBlockFeed, subRequest, callbackFunc)
+	return c.subscribe(ctx, types.OnBlockFeed, subReq, cb)
 }
 
 func (c *Client) UnsubscribeFromEthOnBlock() error {

@@ -46,7 +46,7 @@ type NewTxParams struct {
 }
 
 // OnNewTx subscribes to new transactions feed
-func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callback CallbackFunc) error {
+func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, cb CallbackFunc) error {
 	if params == nil {
 		params = &NewTxParams{}
 	}
@@ -61,13 +61,12 @@ func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callback Call
 		return fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	subRequest := &jsonrpc2.Request{
+	subReq := &jsonrpc2.Request{
 		ID:     randomID(),
 		Method: string(jsonrpc.RPCSubscribe),
 		Params: (*json.RawMessage)(&raw),
 	}
-
-	return c.subscribe(ctx, types.NewTxsFeed, subRequest, callback)
+	return c.subscribe(ctx, types.NewTxsFeed, subReq, cb)
 }
 
 // UnsubscribeFromNewTxs unsubscribes from new transactions feed

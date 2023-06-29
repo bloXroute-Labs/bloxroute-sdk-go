@@ -22,7 +22,7 @@ type TxReceiptParams struct {
 }
 
 // OnTxReceipt subscribes to  all transaction receipts in each newly mined block.
-func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callback CallbackFunc) error {
+func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, cb CallbackFunc) error {
 	if params == nil {
 		params = &TxReceiptParams{}
 	}
@@ -37,13 +37,12 @@ func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callb
 		return fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	subRequest := &jsonrpc2.Request{
+	subReq := &jsonrpc2.Request{
 		ID:     randomID(),
 		Method: string(jsonrpc.RPCSubscribe),
 		Params: (*json.RawMessage)(&raw),
 	}
-
-	return c.subscribe(ctx, types.NewTxsFeed, subRequest, callback)
+	return c.subscribe(ctx, types.NewTxsFeed, subReq, cb)
 }
 
 // UnsubscribeFromNewTxs unsubscribes from new transactions feed

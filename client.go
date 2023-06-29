@@ -29,8 +29,7 @@ type Client struct {
 // Note: the client is not connected to the cloud API until Connect() is called
 // or a subscription is made
 func NewClient(config *Config) (*Client, error) {
-	err := config.validate()
-	if err != nil {
+	if err := config.validate(); err != nil {
 		return nil, err
 	}
 
@@ -55,10 +54,6 @@ func NewClient(config *Config) (*Client, error) {
 		config.BlockchainNetwork = "Mainnet"
 	}
 
-	c := &Client{
-		initialized: true,
-	}
-
 	if config.Dialer == nil {
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true,
@@ -77,12 +72,12 @@ func NewClient(config *Config) (*Client, error) {
 		stop:            make(chan struct{}),
 	}
 
+	c := &Client{initialized: true}
 	if config.CloudAPIURL != "" {
 		c.cloudAPIHandler = h
 	} else {
 		c.gatewayHandler = h
 	}
-
 	return c, nil
 }
 
@@ -95,7 +90,6 @@ func (c *Client) Close() (err error) {
 	if c.cloudAPIHandler != nil {
 		return c.cloudAPIHandler.close()
 	}
-
 	return c.gatewayHandler.close()
 }
 
@@ -115,53 +109,48 @@ func (c *Client) Run(ctx context.Context) error {
 		return c.cloudAPIHandler.read(ctx)
 	}
 
-	err := c.gatewayHandler.connect(ctx)
-	if err != nil {
+	if err := c.gatewayHandler.connect(ctx); err != nil {
 		return fmt.Errorf("failed to connect to gateway: %w", err)
 	}
-
 	return c.gatewayHandler.read(ctx)
 }
 
-func (c *Client) subscribe(ctx context.Context, f types.FeedType, subReq *jsonrpc2.Request, callback CallbackFunc) error {
+func (c *Client) subscribe(ctx context.Context, f types.FeedType, subReq *jsonrpc2.Request, cb CallbackFunc) error {
 	if c.cloudAPIHandler != nil {
-		resChan, err := c.cloudAPIHandler.subscribe(ctx, f, subReq)
+		ch, err := c.cloudAPIHandler.subscribe(ctx, f, subReq)
 		if err != nil {
 			return err
 		}
-
-		return c.cloudAPIHandler.waitSubscriptionResponse(ctx, resChan, f, subReq, callback)
+		return c.cloudAPIHandler.waitSubscriptionResponse(ctx, ch, f, subReq, cb)
 	}
 
-	resChan, err := c.gatewayHandler.subscribe(ctx, f, subReq)
+	ch, err := c.gatewayHandler.subscribe(ctx, f, subReq)
 	if err != nil {
 		return err
 	}
-
-	return c.gatewayHandler.waitSubscriptionResponse(ctx, resChan, f, subReq, callback)
+	return c.gatewayHandler.waitSubscriptionResponse(ctx, ch, f, subReq, cb)
 }
 
 // make a request to the cloud API and wait for the response
 func (c *Client) request(ctx context.Context, req *jsonrpc2.Request) (*json.RawMessage, error) {
 	if c.cloudAPIHandler != nil {
-		resChan, err := c.cloudAPIHandler.request(ctx, req)
+		ch, err := c.cloudAPIHandler.request(ctx, req)
 		if err != nil {
 			return nil, err
 		}
-		return c.cloudAPIHandler.waitRequestResponse(ctx, resChan, req)
+		return c.cloudAPIHandler.waitRequestResponse(ctx, ch, req)
 	}
 
-	resChan, err := c.gatewayHandler.request(ctx, req)
+	ch, err := c.gatewayHandler.request(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return c.gatewayHandler.waitRequestResponse(ctx, resChan, req)
+	return c.gatewayHandler.waitRequestResponse(ctx, ch, req)
 }
 
 func (c *Client) unsubscribeRetry(f types.FeedType) error {
 	if c.cloudAPIHandler != nil {
 		return c.cloudAPIHandler.unsubscribeRetry(f)
 	}
-
 	return c.gatewayHandler.unsubscribeRetry(f)
 }

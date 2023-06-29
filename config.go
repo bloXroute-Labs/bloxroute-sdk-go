@@ -98,6 +98,5 @@ func (c *Config) validate() error {
 	if c.AuthHeader == "" && (c.AccountID == "" || c.Secret == "") {
 		return ErrAuthHeaderNotProvided
 	}
-
 	return nil
 }

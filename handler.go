@@ -58,46 +58,53 @@ type subscription struct {
 	subReq   *jsonrpc2.Request
 }
 
-func (h *handler) connect(ctx context.Context) (err error) {
+func (h *handler) connect(ctx context.Context) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	var url string
+	url := h.config.GatewayURL
 	if h.config.CloudAPIURL != "" {
 		url = h.config.CloudAPIURL
-	} else {
-		url = h.config.GatewayURL
 	}
 
-	h.conn, _, err = h.config.Dialer.DialContext(ctx, url, http.Header{authHeaderKey: []string{h.config.AuthHeader}})
+	conn, _, err := h.config.Dialer.DialContext(ctx, url, http.Header{authHeaderKey: []string{h.config.AuthHeader}})
+	if err != nil {
+		return err
+	}
 
-	return
+	h.conn = conn
+	return nil
 }
 
-func (h *handler) reconnect(ctx context.Context) (err error) {
+func (h *handler) reconnect(ctx context.Context) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	h.conn, err = h.config.ReconnectFunc(ctx, h.config.Dialer, h.config.CloudAPIURL, h.config.AuthHeader)
+	conn, err := h.config.ReconnectFunc(ctx, h.config.Dialer, h.config.CloudAPIURL, h.config.AuthHeader)
+	if err != nil {
+		return err
+	}
 
-	return
+	h.conn = conn
+	return nil
 }
 
 func (h *handler) read(ctx context.Context) error {
 	for {
 		select {
-		case <-h.stop:
-			return nil
 		case <-ctx.Done():
 			return h.close()
+		case <-h.stop:
+			return nil
 		default:
-			messageType, message, err := h.conn.ReadMessage()
+			msgType, msg, err := h.conn.ReadMessage()
 			if err != nil {
 				select {
 				case <-h.stop:
-					// client is closed, so just return
+					// client is closed
 					return nil
 				default:
+					// pass through
 				}
 
 				if !isWSClosedError(err) || !*h.config.Reconnect {
@@ -105,8 +112,7 @@ func (h *handler) read(ctx context.Context) error {
 				}
 
 				// connection is closed, try to reconnect
-				err := h.reconnect(ctx)
-				if err != nil {
+				if err := h.reconnect(ctx); err != nil {
 					return err
 				}
 
@@ -115,13 +121,13 @@ func (h *handler) read(ctx context.Context) error {
 
 				continue
 			}
-			if messageType != websocket.TextMessage {
-				// TODO: handle non-text messages
+
+			// TODO: handle non-text messages
+			if msgType != websocket.TextMessage {
 				continue
 			}
 
-			err = h.handleMessage(ctx, message)
-			if err != nil {
+			if err := h.handleMessage(ctx, msg); err != nil {
 				h.config.Logger.Errorf("failed to handle message: %s", err)
 			}
 		}
@@ -129,25 +135,28 @@ func (h *handler) read(ctx context.Context) error {
 }
 
 func (h *handler) handleMessage(ctx context.Context, message []byte) error {
-	var p fastjson.Parser
-	v, err := p.ParseBytes(message)
+	parse, err := fastjson.ParseBytes(message)
 	if err != nil {
 		return fmt.Errorf("failed to parse message: %w", err)
 	}
 
 	// check the subscription ID exists
-	id := jsonrpc2.ID{Str: string(v.GetStringBytes("id")), IsString: true}
+	id := jsonrpc2.ID{
+		Str:      string(parse.GetStringBytes("id")),
+		IsString: true,
+	}
+
 	resChan, ok := h.pendingResponse[id]
 	if ok {
 		defer delete(h.pendingResponse, id)
 		defer close(resChan)
 
-		errMessage := v.GetObject("error")
-		if errMessage != nil {
-			code, _ := errMessage.Get("code").Int64()
-			data := json.RawMessage(errMessage.Get("data").GetStringBytes())
+		if err := parse.GetObject("error"); err != nil {
+			code, _ := err.Get("code").Int64()
+			data := json.RawMessage(err.Get("data").GetStringBytes())
+			params := requestResponse{Error: &RPCError{Code: code, Message: err.Get("message").String(), Data: &data}}
 			select {
-			case resChan <- requestResponse{Error: &RPCError{Code: code, Message: errMessage.Get("message").String(), Data: &data}}:
+			case resChan <- params:
 				return nil
 			default:
 				return nil
@@ -156,44 +165,42 @@ func (h *handler) handleMessage(ctx context.Context, message []byte) error {
 
 		// when result is a string, it is a subscription ID for a subscription request
 		// otherwise it looks to be a response to a normal request
-		result := v.Get("result")
-		if result != nil {
-			subscriptionId := v.GetStringBytes("result")
+		if res := parse.Get("result"); res != nil {
+			subscriptionId := parse.GetStringBytes("result")
 			if len(subscriptionId) > 0 {
+				params := requestResponse{ID: string(subscriptionId)}
 				select {
-				case resChan <- requestResponse{ID: string(subscriptionId)}:
+				case resChan <- params:
 					return nil
 				default:
 					return nil
 				}
 			} else {
-				resBytes := result.MarshalTo(nil)
+				params := requestResponse{Result: res.MarshalTo(nil)}
 				select {
-				case resChan <- requestResponse{Result: resBytes}:
+				case resChan <- params:
 					return nil
 				default:
+					// drop the response
 				}
 			}
 		}
-
 		return nil
 	}
 
-	method := v.GetStringBytes("method")
-	if string(method) != "subscribe" {
+	method := string(parse.GetStringBytes("method"))
+	if method != "subscribe" {
 		return nil
 	}
 
-	subscription, ok := h.subscriptions[string(v.GetStringBytes("params", "subscription"))]
+	sub, ok := h.subscriptions[string(parse.GetStringBytes("params", "subscription"))]
 	if !ok {
 		// subscription not found
 		return nil
 	}
 
-	paramsResult := json.RawMessage(v.GetObject("params", "result").String())
-
-	subscription.callback(ctx, &paramsResult)
-
+	params := json.RawMessage(parse.GetObject("params", "result").String())
+	sub.callback(ctx, &params)
 	return nil
 }
 
@@ -203,9 +210,9 @@ func (h *handler) subscribe(ctx context.Context, f types.FeedType, subReq *jsonr
 	defer h.lock.Unlock()
 
 	// check if already subscribed
-	_, ok := h.feeds[f]
-	if ok {
-		return nil, fmt.Errorf("already subscribed to %s", types.NewTxsFeed)
+	if _, ok := h.feeds[f]; ok {
+		err := fmt.Errorf("already subscribed to %s", types.NewTxsFeed)
+		return nil, err
 	}
 
 	// connect if not connected
@@ -213,23 +220,19 @@ func (h *handler) subscribe(ctx context.Context, f types.FeedType, subReq *jsonr
 		return nil, ErrNotConnected
 	}
 
-	resChan := make(chan requestResponse, 1)
-
 	// add subscription
+	ch := make(chan requestResponse, 1)
 	h.feeds[f] = struct{}{}
-	h.pendingResponse[subReq.ID] = resChan
-
-	err := h.conn.WriteJSON(subReq)
-	if err != nil {
+	h.pendingResponse[subReq.ID] = ch
+	if err := h.conn.WriteJSON(subReq); err != nil {
 		return nil, fmt.Errorf("failed to write subscribe request for %s feed: %w", f, err)
 	}
-
-	return resChan, nil
+	return ch, nil
 }
 
 // waitSubscriptionResponse waits for a subscription response
-func (h *handler) waitSubscriptionResponse(ctx context.Context, resChan chan requestResponse, feedType types.FeedType, subReq *jsonrpc2.Request, callback CallbackFunc) error {
-	wait := time.NewTimer(requestWaitTimeout)
+func (h *handler) waitSubscriptionResponse(ctx context.Context, resChan chan requestResponse, feedType types.FeedType, subReq *jsonrpc2.Request, cb CallbackFunc) error {
+	timer := time.NewTimer(requestWaitTimeout)
 	select {
 	case <-ctx.Done():
 		return nil
@@ -237,6 +240,7 @@ func (h *handler) waitSubscriptionResponse(ctx context.Context, resChan chan req
 		if !ok {
 			return nil
 		}
+
 		if res.Error != nil {
 			return res.Error
 		}
@@ -244,17 +248,18 @@ func (h *handler) waitSubscriptionResponse(ctx context.Context, resChan chan req
 		// add a subscription
 		h.lock.Lock()
 		defer h.lock.Unlock()
-		h.subscriptions[res.ID] = subscription{subReq: subReq, callback: callback, feedType: feedType}
+		h.subscriptions[res.ID] = subscription{subReq: subReq, callback: cb, feedType: feedType}
 
 		return nil
-	case <-wait.C:
+	case <-timer.C:
 		h.lock.Lock()
 		defer h.lock.Unlock()
 
 		delete(h.pendingResponse, subReq.ID)
 		delete(h.feeds, feedType)
 
-		return fmt.Errorf("didn't receive response for %s subscribtion request within %s", feedType, requestWaitTimeout)
+		err := fmt.Errorf("didn't receive response for %s subscribtion request within %s", feedType, requestWaitTimeout)
+		return err
 	}
 }
 
@@ -268,16 +273,13 @@ func (h *handler) request(ctx context.Context, req *jsonrpc2.Request) (chan requ
 		return nil, ErrNotConnected
 	}
 
-	resChan := make(chan requestResponse, 1)
+	ch := make(chan requestResponse, 1)
+	h.pendingResponse[req.ID] = ch
 
-	h.pendingResponse[req.ID] = resChan
-
-	err := h.conn.WriteJSON(req)
-	if err != nil {
+	if err := h.conn.WriteJSON(req); err != nil {
 		return nil, fmt.Errorf("failed to write request: %w", err)
 	}
-
-	return resChan, nil
+	return ch, nil
 }
 
 // wait requestResponse waits for a request response and returns the response or error
@@ -300,38 +302,35 @@ func (h *handler) waitRequestResponse(ctx context.Context, resChan chan requestR
 	case <-wait.C:
 		h.lock.Lock()
 		defer h.lock.Unlock()
-
 		delete(h.pendingResponse, req.ID)
-
-		return nil, fmt.Errorf("request timed out")
-
+		err := fmt.Errorf("request timed out")
+		return nil, err
 	}
 }
 
 func (h *handler) resubscribeAll(ctx context.Context) {
-	subCopy := make([]subscription, 0, len(h.subscriptions))
-	for _, subscription := range h.subscriptions {
-		subCopy = append(subCopy, subscription)
+	subs := make([]subscription, 0, len(h.subscriptions))
+	for _, sub := range h.subscriptions {
+		subs = append(subs, sub)
 	}
 	h.subscriptions = make(map[string]subscription)
 	h.feeds = make(map[types.FeedType]struct{})
 
 loop:
-	for _, subscription := range subCopy {
+	for _, sub := range subs {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 			// create new subscription ID
-			subscription.subReq.ID = randomID()
-			resChan, err := h.subscribe(ctx, subscription.feedType, subscription.subReq)
+			sub.subReq.ID = randomID()
+			ch, err := h.subscribe(ctx, sub.feedType, sub.subReq)
 			if err != nil {
-				h.config.Logger.Errorf("failed to resubscribe to %s feed: %s", subscription.feedType, err)
+				h.config.Logger.Errorf("failed to resubscribe to %s feed: %s", sub.feedType, err)
 				continue loop
 			}
-			err = h.waitSubscriptionResponse(ctx, resChan, subscription.feedType, subscription.subReq, subscription.callback)
-			if err != nil {
-				h.config.Logger.Errorf("failed to resubscribe to %s feed: %s", subscription.feedType, err)
+			if err := h.waitSubscriptionResponse(ctx, ch, sub.feedType, sub.subReq, sub.callback); err != nil {
+				h.config.Logger.Errorf("failed to resubscribe to %s feed: %s", sub.feedType, err)
 			}
 		}
 	}
@@ -342,12 +341,9 @@ func (h *handler) unsubscribeRetry(f types.FeedType) error {
 	backOff := backoff.NewExponentialBackOff()
 	backOff.MaxElapsedTime = unsubscribeTimeout
 	backOff.InitialInterval = unsubscribeInitialInterval
-
-	fn := func() error {
+	return backoff.Retry(func() error {
 		return h.unsubscribe(f)
-	}
-
-	return backoff.Retry(fn, backOff)
+	}, backOff)
 }
 
 func (h *handler) unsubscribe(f types.FeedType) error {
@@ -358,61 +354,53 @@ func (h *handler) unsubscribe(f types.FeedType) error {
 		return backoff.Permanent(fmt.Errorf("connection is not established"))
 	}
 
-	_, ok := h.feeds[f]
-	if !ok {
+	if _, ok := h.feeds[f]; !ok {
 		// no need to unsubscribe
 		return nil
 	}
 
-	var subscriptionID string
-	for id, subscription := range h.subscriptions {
-		if subscription.feedType != f {
+	var subID string
+	for id, sub := range h.subscriptions {
+		if sub.feedType != f {
 			continue
 		}
-		subscriptionID = id
+		subID = id
 		break
 	}
 
-	if subscriptionID == "" {
+	if subID == "" {
 		return fmt.Errorf("no subscription ID is defined for %s yet", types.NewTxsFeed)
 	}
 
-	raw, err := json.Marshal([]interface{}{subscriptionID})
+	raw, err := json.Marshal([]interface{}{subID})
 	if err != nil {
 		return backoff.Permanent(fmt.Errorf("failed to marshal params: %w", err))
 	}
 
-	unsubscribeRequest := &jsonrpc2.Request{
+	// send unsubscribe request
+	if err = h.conn.WriteJSON(&jsonrpc2.Request{
 		ID:     randomID(),
 		Method: string(jsonrpc.RPCUnsubscribe),
 		Params: (*json.RawMessage)(&raw),
-	}
-
-	err = h.conn.WriteJSON(unsubscribeRequest)
-	if err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to write unsubscribe request for %s feed: %w", f, err)
 	}
 
 	delete(h.feeds, f)
-	delete(h.subscriptions, subscriptionID)
-
+	delete(h.subscriptions, subID)
 	return nil
 }
 
-func (h *handler) close() (err error) {
+func (h *handler) close() error {
 	close(h.stop)
-
-	// no connection, so just return
-	if h.conn == nil {
-		return
+	if h.conn != nil {
+		var err error
+		unsubReq := h.conn.WriteJSON(&jsonrpc2.Request{
+			ID:     randomID(),
+			Method: string(jsonrpc.RPCUnsubscribe),
+		})
+		err = errors.Join(err, unsubReq, h.conn.Close())
+		return err
 	}
-
-	unsubscribeRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCUnsubscribe),
-	}
-
-	err = errors.Join(err, h.conn.WriteJSON(unsubscribeRequest), h.conn.Close())
-
-	return
+	return nil
 }

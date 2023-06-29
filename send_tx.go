@@ -46,7 +46,6 @@ type SendTxParams struct {
 
 // SendTx sends a single transaction faster than the p2p network using the BDN
 func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMessage, error) {
-
 	// set blockchain network to match the config if not set
 	if params.BlockchainNetwork == "" {
 		if c.cloudAPIHandler != nil {
@@ -66,12 +65,11 @@ func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMes
 		return nil, fmt.Errorf("failed to marshal params: %w", err)
 	}
 
-	subRequest := &jsonrpc2.Request{
+	subReq := &jsonrpc2.Request{
 		ID:     randomID(),
 		Method: string(jsonrpc.RPCTx),
 		Params: (*json.RawMessage)(&raw),
 	}
-
-	return c.request(ctx, subRequest)
+	return c.request(ctx, subReq)
 
 }
