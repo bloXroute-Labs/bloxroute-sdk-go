@@ -2,10 +2,8 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
-	"os"
+	"fmt"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -13,42 +11,22 @@ import (
 )
 
 func TestClient_OnBlock(t *testing.T) {
-	// t.Run("eth_call", testOnBlock(t, "eth_call"))
-	t.Run("eth_getBalance", testOnBlock(t, "eth_getBalance"))
-	t.Run("eth_getTransactionCount", testOnBlock(t, "eth_getTransactionCount"))
-	t.Run("eth_getStorageAt", testOnBlock(t, "eth_getStorageAt"))
-	t.Run("eth_blockNumber", testOnBlock(t, "eth_blockNumber"))
-
+	// t.ReadWS("eth_call", testOnBlock(t, "eth_call"))
+	t.Run("ws_gateway_eth_getBalance", testOnBlock("eth_getBalance"))
+	t.Run("ws_gateway_eth_getTransactionCount", testOnBlock("eth_getTransactionCount"))
+	t.Run("ws_gateway_eth_getStorageAt", testOnBlock("eth_getStorageAt"))
+	t.Run("ws_gateway_eth_blockNumber", testOnBlock("eth_blockNumber"))
 }
 
-func testOnBlock(t *testing.T, method string) func(t *testing.T) {
+func testOnBlock(method string) func(t *testing.T) {
 
 	testAddress := "0xCbe321c620071307Ba5d0381c886B7359763735E"
 
 	return func(t *testing.T) {
-		config := &Config{
-			AuthHeader: os.Getenv("AUTH_HEADER"),
-		}
-		config.GatewayURL = os.Getenv("GATEWAY_URL")
+		config := testConfig(t, wsGatewayUrl)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
-		defer cancel()
-
-		c, err := NewClient(config)
+		c, err := NewClient(context.Background(), config)
 		require.NoError(t, err)
-
-		started := make(chan struct{})
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			close(started)
-			err := c.Run(ctx)
-			require.NoError(t, err)
-		}()
-
-		<-started
 
 		receive := make(chan struct{})
 
@@ -112,53 +90,43 @@ func testOnBlock(t *testing.T, method string) func(t *testing.T) {
 			})
 		}
 
-		done := false
-
-		err = c.OnBlock(ctx, params, func(ctx context.Context, result *json.RawMessage) {
-			var response struct {
-				Name        string `json:"name"`
-				Response    string `json:"response"`
-				BlockHeight string `json:"block_height"`
-				Tag         string `json:"tag"`
+		err = c.OnBlock(context.Background(), params, func(ctx context.Context, err error, response *OnBlockNotification) {
+			select {
+			case <-receive:
+				return
+			default:
 			}
 
-			if !done {
-				// needs some improvement
-				if method == "eth_getBalance" {
-					err := json.Unmarshal(*result, &response)
-					require.NoError(t, err)
-					require.Equal(t, "0x23708c8bd551c12", response.Response)
-				} else if method == "eth_getTransactionCount" {
-					err := json.Unmarshal(*result, &response)
-					require.NoError(t, err)
-					require.Equal(t, "0x96", response.Response)
-				} else if method == "eth_getStorageAt" {
-					err := json.Unmarshal(*result, &response)
-					require.NoError(t, err)
-					require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000000", response.Response)
-				} else if method == "eth_blockNumber" {
-					err := json.Unmarshal(*result, &response)
-					require.NoError(t, err)
-					_, err = strconv.ParseUint(response.Response, 0, 64)
-					require.NoError(t, err)
-				}
-				done = true
-				close(receive)
+			require.NoError(t, err)
+
+			switch method {
+			case "eth_getBalance":
+				require.Equal(t, "0x23708c8bd551c12", response.Response)
+			case "eth_getTransactionCount":
+				require.Equal(t, "0x96", response.Response)
+			case "eth_getStorageAt":
+				require.Equal(t, "0x0000000000000000000000000000000000000000000000000000000000000000", response.Response)
+			case "eth_blockNumber":
+				_, err = strconv.ParseUint(response.Response, 0, 64)
+				require.NoError(t, err)
+			default:
+				t.FailNow()
 			}
+
+			close(receive)
 		})
 
 		require.NoError(t, err)
 
 		select {
 		case <-receive:
-		case <-time.After(15 * time.Second):
-			require.Failf(t, "timeout waiting for the %s event", method)
+		case <-time.After(time.Minute):
+			require.Fail(t, fmt.Sprintf("timeout waiting for the %s event", method))
 		}
 
 		err = c.UnsubscribeFromEthOnBlock()
 		require.NoError(t, err)
 
 		require.NoError(t, c.Close())
-		wg.Wait()
 	}
 }

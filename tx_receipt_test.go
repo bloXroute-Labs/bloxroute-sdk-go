@@ -2,9 +2,6 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
-	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -12,34 +9,20 @@ import (
 )
 
 func TestOnTxReceipt(t *testing.T) {
-	t.Run("gateway", testOnTxReceipt(t, "GATEWAY_URL"))
+	t.Run("ws_gateway", testOnTxReceipt(wsGatewayUrl))
 }
 
-func testOnTxReceipt(t *testing.T, url string) func(t *testing.T) {
+func testOnTxReceipt(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
-		config := &Config{
-			AuthHeader: os.Getenv("AUTH_HEADER"),
-			GatewayURL: os.Getenv("GATEWAY_URL"),
-		}
+		config := testConfig(t, url)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
-		defer cancel()
-
-		c, err := NewClient(config)
+		c, err := NewClient(context.Background(), config)
 		require.NoError(t, err)
-
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			err := c.Run(ctx)
-			require.NoError(t, err)
-		}()
 
 		receive := make(chan struct{})
 
-		err = c.OnTxReceipt(ctx, nil, func(ctx context.Context, result *json.RawMessage) {
+		err = c.OnTxReceipt(context.Background(), nil, func(ctx context.Context, err error, result *OnTxReceiptNotification) {
+			require.NoError(t, err)
 			close(receive)
 		})
 		require.NoError(t, err)
@@ -47,7 +30,7 @@ func testOnTxReceipt(t *testing.T, url string) func(t *testing.T) {
 		// wait for the first tx receipt
 		select {
 		case <-receive:
-		case <-time.After(10 * time.Second):
+		case <-time.After(time.Minute):
 			require.Fail(t, "timeout waiting for tx receipt")
 		}
 
@@ -55,6 +38,5 @@ func testOnTxReceipt(t *testing.T, url string) func(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, c.Close())
-		wg.Wait()
 	}
 }

@@ -2,12 +2,9 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 	"github.com/bloXroute-Labs/gateway/v2/types"
-	"github.com/sourcegraph/jsonrpc2"
 )
 
 // OnBlockParams is the params object for the eth_onBlock subscription
@@ -87,7 +84,7 @@ type OnBlockParamsBlockNumber struct {
 }
 
 // OnBlock subscribes to stream of changes in the EVM state when a new block is mined
-func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFunc CallbackFunc) error {
+func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFunc CallbackFunc[*OnBlockNotification]) error {
 	if params == nil {
 		return fmt.Errorf("params is nil or empty")
 	}
@@ -95,20 +92,17 @@ func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFun
 		return fmt.Errorf("at least one call_params is required")
 	}
 
-	raw, err := json.Marshal([]interface{}{types.OnBlockFeed, params})
-	if err != nil {
-		return fmt.Errorf("failed to marshal params: %w", err)
+	wrap := func(ctx context.Context, err error, result any) {
+		if err != nil {
+			callbackFunc(ctx, err, nil)
+			return
+		}
+		callbackFunc(ctx, err, result.(*OnBlockNotification))
 	}
 
-	subRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCSubscribe),
-		Params: (*json.RawMessage)(&raw),
-	}
-
-	return c.subscribe(ctx, types.OnBlockFeed, subRequest, callbackFunc)
+	return c.handler.Subscribe(ctx, types.OnBlockFeed, params, wrap)
 }
 
 func (c *Client) UnsubscribeFromEthOnBlock() error {
-	return c.unsubscribeRetry(types.OnBlockFeed)
+	return c.handler.UnsubscribeRetry(types.OnBlockFeed)
 }

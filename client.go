@@ -2,86 +2,68 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
+	"strings"
 	"sync"
 
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
 	"github.com/bloXroute-Labs/gateway/v2/types"
-	"github.com/fasthttp/websocket"
 	"github.com/sourcegraph/jsonrpc2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
-var (
-	ErrClientNotInitialized = errors.New("client not initialized")
+type handlerSourceType int
+
+const (
+	handlerSourceTypeCloudAPIWS handlerSourceType = iota
+	handlerSourceTypeGatewayWS
+	handlerSourceTypeCloudAPIGRPC // not yet supported
+	handlerSourceTypeGatewayGRPC
 )
+
+var ErrClientNotInitialized = errors.New("client not initialized")
+
+type handler interface {
+	Type() handlerSourceType
+	Subscribe(ctx context.Context, f types.FeedType, req any, callback CallbackFunc[any]) error
+	Request(ctx context.Context, method jsonrpc.RPCRequestType, params any) (*json.RawMessage, error)
+	UnsubscribeRetry(f types.FeedType) error
+	Close() error
+}
 
 // Client is a client for the bloXroute cloud API
 type Client struct {
-	cloudAPIHandler *handler
-	gatewayHandler  *handler
-	initialized     bool
+	handler           handler
+	blockchainNetwork string
+	initialized       bool
 }
 
 // NewClient creates a new SDK client
 // Note: the client is not connected to the cloud API until Connect() is called
 // or a subscription is made
-func NewClient(config *Config) (*Client, error) {
+func NewClient(ctx context.Context, config *Config) (*Client, error) {
 	err := config.validate()
 	if err != nil {
 		return nil, err
 	}
 
-	if config.AuthHeader == "" {
-		config.AuthHeader = base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", config.AccountID, config.Secret)))
-	}
-
-	if config.Reconnect == nil {
-		reconnect := true
-		config.Reconnect = &reconnect
-	}
-
-	if config.Reconnect != nil && *config.Reconnect && config.ReconnectFunc == nil {
-		config.ReconnectFunc = reconnect
-	}
-
-	if config.Logger == nil {
-		config.Logger = &noopLogger{}
-	}
-
-	if config.BlockchainNetwork == "" {
-		config.BlockchainNetwork = "Mainnet"
-	}
+	config.setDefaults()
 
 	c := &Client{
-		initialized: true,
+		blockchainNetwork: config.BlockchainNetwork,
 	}
 
-	if config.Dialer == nil {
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		config.Dialer = websocket.DefaultDialer
-		config.Dialer.TLSClientConfig = tlsConfig
+	err = c.connect(ctx, config)
+	if err != nil {
+		return nil, err
 	}
 
-	// TODO check if we need to change the handler structure for gateway and cloudAPI
-	h := &handler{
-		config:          config,
-		feeds:           make(map[types.FeedType]struct{}),
-		subscriptions:   make(map[string]subscription),
-		pendingResponse: make(map[jsonrpc2.ID]chan requestResponse),
-		lock:            &sync.Mutex{},
-		stop:            make(chan struct{}),
-	}
-
-	if config.CloudAPIURL != "" {
-		c.cloudAPIHandler = h
-	} else {
-		c.gatewayHandler = h
-	}
+	c.initialized = true
 
 	return c, nil
 }
@@ -92,76 +74,64 @@ func (c *Client) Close() (err error) {
 		return ErrClientNotInitialized
 	}
 
-	if c.cloudAPIHandler != nil {
-		return c.cloudAPIHandler.close()
-	}
-
-	return c.gatewayHandler.close()
+	return c.handler.Close()
 }
 
-// Run reads messages from the cloud API and handles them
-// Run blocks until the context is canceled or an error occurs
-func (c *Client) Run(ctx context.Context) error {
-	if !c.initialized {
-		return ErrClientNotInitialized
-	}
-
-	if c.cloudAPIHandler != nil {
-		err := c.cloudAPIHandler.connect(ctx)
+func (c *Client) connect(ctx context.Context, config *Config) error {
+	if config.GRPCGatewayURL != "" {
+		grpcConn, err := grpc.DialContext(ctx, strings.TrimPrefix(config.GRPCGatewayURL, "grpc://"), config.GRPCDialOptions...)
 		if err != nil {
-			return fmt.Errorf("failed to connect to cloud API: %w", err)
+			return fmt.Errorf("failed to create GRPC connection: %w", err)
 		}
 
-		return c.cloudAPIHandler.read(ctx)
-	}
-
-	err := c.gatewayHandler.connect(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to connect to gateway: %w", err)
-	}
-
-	return c.gatewayHandler.read(ctx)
-}
-
-func (c *Client) subscribe(ctx context.Context, f types.FeedType, subReq *jsonrpc2.Request, callback CallbackFunc) error {
-	if c.cloudAPIHandler != nil {
-		resChan, err := c.cloudAPIHandler.subscribe(ctx, f, subReq)
-		if err != nil {
-			return err
+		c.handler = &grpcHandler{
+			hst:    handlerSourceTypeGatewayGRPC,
+			config: config,
+			conn:   grpcConn,
+			client: pb.NewGatewayClient(grpcConn),
+			md: metadata.New(map[string]string{
+				blockchainHeaderKey: config.BlockchainNetwork,
+				sdkVersionHeaderKey: buildVersion,
+				languageHeaderKey:   runtime.Version(),
+			}),
+			stop:          make(chan struct{}),
+			wg:            &sync.WaitGroup{},
+			subscriptions: make(map[types.FeedType]grpcSubscription),
+			lock:          &sync.Mutex{},
 		}
 
-		return c.cloudAPIHandler.waitSubscriptionResponse(ctx, resChan, f, subReq, callback)
+		return nil
 	}
 
-	resChan, err := c.gatewayHandler.subscribe(ctx, f, subReq)
+	var hst handlerSourceType
+	if config.WSCloudAPIURL != "" {
+		hst = handlerSourceTypeCloudAPIWS
+	} else {
+		hst = handlerSourceTypeGatewayWS
+	}
+
+	h := &wsHandler{
+		hst:             hst,
+		config:          config,
+		feeds:           make(map[types.FeedType]feed),
+		subscriptions:   make(map[string]wsSubscription),
+		pendingResponse: make(map[jsonrpc2.ID]chan requestResponse),
+		lock:            &sync.Mutex{},
+		stop:            make(chan struct{}),
+		wg:              &sync.WaitGroup{},
+		readErr:         make(chan error, 1),
+	}
+
+	err := h.reconnect(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to WS: %w", err)
 	}
 
-	return c.gatewayHandler.waitSubscriptionResponse(ctx, resChan, f, subReq, callback)
-}
+	h.wg.Add(1)
 
-// make a request to the cloud API and wait for the response
-func (c *Client) request(ctx context.Context, req *jsonrpc2.Request) (*json.RawMessage, error) {
-	if c.cloudAPIHandler != nil {
-		resChan, err := c.cloudAPIHandler.request(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-		return c.cloudAPIHandler.waitRequestResponse(ctx, resChan, req)
-	}
+	go h.read(ctx)
 
-	resChan, err := c.gatewayHandler.request(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	return c.gatewayHandler.waitRequestResponse(ctx, resChan, req)
-}
+	c.handler = h
 
-func (c *Client) unsubscribeRetry(f types.FeedType) error {
-	if c.cloudAPIHandler != nil {
-		return c.cloudAPIHandler.unsubscribeRetry(f)
-	}
-
-	return c.gatewayHandler.unsubscribeRetry(f)
+	return nil
 }

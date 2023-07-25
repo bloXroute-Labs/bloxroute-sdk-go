@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOnNewTx(t *testing.T) {
-	t.Run("ws_cloud_api", testOnNewTx(wsCloudApiUrl))
-	t.Run("ws_gateway", testOnNewTx(wsGatewayUrl))
-	t.Run("grpc_gateway", testOnNewTx(grpcGatewayUrl))
+func TestOnBdnBlock(t *testing.T) {
+	t.Run("ws_cloud_api", testOnBdnBlock(wsCloudApiUrl))
+	t.Run("ws_gateway", testOnBdnBlock(wsGatewayUrl))
+	t.Run("grpc_gateway", testOnBdnBlock(grpcGatewayUrl))
 }
 
-func testOnNewTx(url testURL) func(t *testing.T) {
+func testOnBdnBlock(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
 		config := testConfig(t, url)
 
@@ -23,16 +23,10 @@ func testOnNewTx(url testURL) func(t *testing.T) {
 
 		receive := make(chan struct{})
 
-		err = c.OnNewTx(context.Background(), &NewTxParams{Include: []string{"raw_tx"}}, func(ctx context.Context, err error, result *NewTxNotification) {
-			select {
-			case <-receive:
-				return
-			default:
-			}
-
+		err = c.OnBdnBlock(context.Background(), &BdnBlockParams{Include: []string{"hash"}}, func(ctx context.Context, err error, result *OnBdnBlockNotification) {
 			require.NoError(t, err)
 			require.NotNilf(t, result, "result is nil")
-			require.NotEmptyf(t, result.RawTx, "raw tx is empty")
+			require.NotEmptyf(t, result.Hash, "hash is empty")
 
 			close(receive)
 		})
@@ -41,11 +35,11 @@ func testOnNewTx(url testURL) func(t *testing.T) {
 		// wait for the first new tx
 		select {
 		case <-receive:
-		case <-time.After(10 * time.Second):
+		case <-time.After(time.Minute):
 			require.Fail(t, "timeout waiting for new tx")
 		}
 
-		err = c.UnsubscribeFromNewTxs()
+		err = c.UnsubscribeFromBdnBlock()
 		require.NoError(t, err)
 		require.NoError(t, c.Close())
 	}

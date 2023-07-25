@@ -2,12 +2,7 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
-	"github.com/sourcegraph/jsonrpc2"
-
-	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 	"github.com/bloXroute-Labs/gateway/v2/types"
 )
 
@@ -32,6 +27,10 @@ type NewTxParams struct {
 	// Optional (defaults to ["tx_hash"])
 	Include []string `json:"include"`
 
+	// Duplicates indicates whether to include transactions already published in the feed
+	// Optional (defaults to false)
+	Duplicates bool `json:"duplicates"`
+
 	// Filters is SQL-like syntax string for logical operations.
 	// Optional
 	Filters string `json:"filters,omitempty"`
@@ -46,7 +45,7 @@ type NewTxParams struct {
 }
 
 // OnNewTx subscribes to new transactions feed
-func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callback CallbackFunc) error {
+func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callbackFunc CallbackFunc[*NewTxNotification]) error {
 	if params == nil {
 		params = &NewTxParams{}
 	}
@@ -56,21 +55,18 @@ func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callback Call
 		params.Include = []string{"tx_hash"}
 	}
 
-	raw, err := json.Marshal([]interface{}{types.NewTxsFeed, params})
-	if err != nil {
-		return fmt.Errorf("failed to marshal params: %w", err)
+	wrap := func(ctx context.Context, err error, result any) {
+		if err != nil {
+			callbackFunc(ctx, err, nil)
+			return
+		}
+		callbackFunc(ctx, err, result.(*NewTxNotification))
 	}
 
-	subRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCSubscribe),
-		Params: (*json.RawMessage)(&raw),
-	}
-
-	return c.subscribe(ctx, types.NewTxsFeed, subRequest, callback)
+	return c.handler.Subscribe(ctx, types.NewTxsFeed, params, wrap)
 }
 
 // UnsubscribeFromNewTxs unsubscribes from new transactions feed
 func (c *Client) UnsubscribeFromNewTxs() error {
-	return c.unsubscribeRetry(types.NewTxsFeed)
+	return c.handler.UnsubscribeRetry(types.NewTxsFeed)
 }
