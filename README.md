@@ -79,7 +79,7 @@ To run the tests, the following environment variables should be set:
 
 ```bash
 export AUTH_HEADER=af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m
-export WS_CLOUD_API_URL=ws://localhost:80/ws
+export WS_CLOUD_API_URL=wss://api.blxrbdn.com/ws
 export WS_GATEWAY_URL=ws://localhost:28334/ws
 export GRPC_GATEWAY_URL=grpc://localhost:5001
 ```

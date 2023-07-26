@@ -44,31 +44,31 @@ func (h *grpcHandler) Type() handlerSourceType {
 }
 
 // Subscribe subscribes to a feed
-func (h *grpcHandler) Subscribe(ctx context.Context, f types.FeedType, req any, callback CallbackFunc[any]) error {
+func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req any, callback CallbackFunc[any]) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	_, ok := h.subscriptions[f]
+	_, ok := h.subscriptions[feed]
 	if ok {
-		return fmt.Errorf("feed %v already subscribed", f)
+		return fmt.Errorf("feed %v already subscribed", feed)
 	}
 
 	ctx = metadata.NewOutgoingContext(ctx, h.md)
 
 	subCtx, cancel := context.WithCancel(ctx)
-	var a func() (any, error)
+	var wrapStream func() (any, error)
 	var err error
 
-	switch f {
+	switch feed {
 	case types.NewTxsFeed:
 		params := req.(*NewTxParams)
 		var stream pb.Gateway_NewTxsClient
 		stream, err = h.client.NewTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include, AuthHeader: h.config.AuthHeader})
 		if err != nil {
 			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", f, err)
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
 		}
-		a = func() (any, error) {
+		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
 	case types.NewBlocksFeed:
@@ -77,9 +77,9 @@ func (h *grpcHandler) Subscribe(ctx context.Context, f types.FeedType, req any, 
 		stream, err = h.client.NewBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include, AuthHeader: h.config.AuthHeader})
 		if err != nil {
 			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", f, err)
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
 		}
-		a = func() (any, error) {
+		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
 	case types.BDNBlocksFeed:
@@ -88,17 +88,17 @@ func (h *grpcHandler) Subscribe(ctx context.Context, f types.FeedType, req any, 
 		stream, err = h.client.BdnBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include, AuthHeader: h.config.AuthHeader})
 		if err != nil {
 			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", f, err)
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
 		}
-		a = func() (any, error) {
+		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
 	default:
 		cancel()
-		return fmt.Errorf("%s feed type is not yet supported", f)
+		return fmt.Errorf("%s feed type is not yet supported", feed)
 	}
 
-	h.sub(subCtx, cancel, f, a, req, callback)
+	h.sub(subCtx, cancel, feed, wrapStream, req, callback)
 
 	return nil
 }

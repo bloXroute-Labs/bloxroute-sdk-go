@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/bloXroute-Labs/gateway/v2 v2.126.17
 	github.com/cenkalti/backoff/v4 v4.2.1
-	github.com/ethereum/go-ethereum v1.11.3
+	github.com/ethereum/go-ethereum v1.12.0
 	github.com/fasthttp/websocket v1.5.3
 	github.com/sourcegraph/jsonrpc2 v0.2.0
 	github.com/stretchr/testify v1.8.4
@@ -23,7 +23,7 @@ require (
 	github.com/evalphobia/logrus_fluent v0.5.4 // indirect
 	github.com/fluent/fluent-logger-golang v1.9.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.1 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect
 	github.com/klauspost/compress v1.16.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
@@ -53,17 +53,14 @@ require (
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
-	google.golang.org/genproto v0.0.0-20230724170836-66ad5b6ff146 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230724170836-66ad5b6ff146 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230724170836-66ad5b6ff146 // indirect
+	google.golang.org/genproto v0.0.0-20230717213848-3f92550aa753 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230717213848-3f92550aa753 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230717213848-3f92550aa753 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace (
-	// Used in prysm which also has replace for this but for some reason go list which is used in some IDEs does not recognize semver before replace
-	github.com/MariusVanDerWijden/tx-fuzz => github.com/marcopolo/tx-fuzz v0.0.0-20220927011827-b5c461bc7cae
-	github.com/ethereum/go-ethereum => github.com/bloXroute-Labs/go-ethereum v1.11.5-upscale.1
-)
+// Used in prysm which also has replace for this but for some reason go list which is used in some IDEs does not recognize semver before replace
+replace github.com/MariusVanDerWijden/tx-fuzz => github.com/marcopolo/tx-fuzz v0.0.0-20220927011827-b5c461bc7cae
