@@ -17,22 +17,24 @@ To get started with the Bloxroute Cloud Golang SDK, follow these steps:
 Import the SDK into your project:
 
 ```go
-import "github.com/bloXroute-Labs/bloxroute-sdk-go"
+import (
+    sdk "github.com/bloXroute-Labs/bloxroute-sdk-go"
+)
 ```
 
 Initialize the SDK Client using Auth Header and WS/gRPC URL (either cloud API or a gateway):
 
 ```go
 // create a config
-config := &Config{
+config := &sdk.Config{
 	AuthHeader: "af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m",
 	WSCloudAPIURL: "wss://8.210.133.198/ws",
 }
 
 // create a new client
-c, err := NewClient(context.Background(), config)
+c, err := sdk.NewClient(context.Background(), config)
 if err != nil {
-    // handle error
+    log.Fatal(err)
 }
 ```
 
@@ -41,15 +43,14 @@ Subscribe to a feed:
 ```go
 
 // subscribe to new transactions
-err := c.OnNewTx(ctx, &NewTxParams{Include: []string{"raw_tx"}}, func(ctx context.Context, err error, result *NewTxNotification) {
+if err := c.OnNewTx(ctx, &sdk.NewTxParams{Include: []string{"raw_tx"}}, func(ctx context.Context, err error, result *sdk.NewTxNotification) {
     if err != nil {
-        // handle error
+        log.Fatal(err)
     }
-    
+
     // handle result
-})
-if err != nil {
-    // handle error
+}); err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -57,9 +58,8 @@ Unsubscribe from a feed:
 
 ```go
 // unsubscribe from new transactions
-err := c.UnsubscribeFromNewTxs()
-if err != nil {
-    // handle error
+if err := c.UnsubscribeFromNewTxs(); err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -67,9 +67,8 @@ Stop the client:
 
 ```go
 // stop the client
-err = c.Close()
-if err != nil {
-    // handle error
+if err = c.Close(); err != nil {
+    log.Fatal(err)
 }
 ```
 

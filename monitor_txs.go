@@ -17,6 +17,7 @@ var (
 	ErrNoSubID      = errors.New("failed to find subscription for transaction status feed")
 )
 
+// OnTxStatus subscribes to a stream of transaction statuses
 func (c *Client) OnTxStatus(ctx context.Context, params OnTxStatusParams) error {
 
 	if c.handler.Type() != handlerSourceTypeCloudAPIWS {

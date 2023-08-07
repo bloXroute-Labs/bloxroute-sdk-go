@@ -103,6 +103,7 @@ func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFun
 	return c.handler.Subscribe(ctx, types.OnBlockFeed, params, wrap)
 }
 
+// UnsubscribeFromEthOnBlock unsubscribes from the eth_onBlock feed
 func (c *Client) UnsubscribeFromEthOnBlock() error {
 	return c.handler.UnsubscribeRetry(types.OnBlockFeed)
 }

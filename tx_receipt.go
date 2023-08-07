@@ -16,7 +16,7 @@ type TxReceiptParams struct {
 	Include []string `json:"include"`
 }
 
-// OnTxReceipt subscribes to  all transaction receipts in each newly mined block.
+// OnTxReceipt subscribes to all transaction receipts in each newly mined block.
 func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callbackFunc CallbackFunc[*OnTxReceiptNotification]) error {
 	if params == nil {
 		params = &TxReceiptParams{}

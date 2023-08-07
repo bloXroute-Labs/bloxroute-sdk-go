@@ -260,7 +260,7 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 					}
 				}
 				result = &OnBdnBlockNotification{
-					Hash:                string(resp.Hash),
+					Hash:                resp.Hash,
 					Header:              header,
 					FutureValidatorInfo: futureValidatorInfo,
 					Transactions:        transactions,

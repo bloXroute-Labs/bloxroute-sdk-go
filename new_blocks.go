@@ -6,7 +6,7 @@ import (
 	"github.com/bloXroute-Labs/gateway/v2/types"
 )
 
-// OnNewBlockParams is the params object for the OnNewBlock subscription
+// NewBlockParams is the params object for the OnNewBlock subscription
 type NewBlockParams struct {
 	// Include is the list of fields to include in the response.
 	// The values of these fields depend on the feed type.

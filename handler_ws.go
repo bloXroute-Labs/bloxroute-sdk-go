@@ -99,6 +99,7 @@ func (h *wsHandler) Subscribe(ctx context.Context, f types.FeedType, params any,
 	return err
 }
 
+// Request sends a request via WS
 func (h *wsHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType, params any) (*json.RawMessage, error) {
 	raw, err := json.Marshal(params)
 	if err != nil {

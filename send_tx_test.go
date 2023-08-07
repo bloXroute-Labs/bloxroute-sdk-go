@@ -9,12 +9,12 @@ import (
 )
 
 func TestSendTx(t *testing.T) {
-	t.Run("ws_cloud_api", testSendTx(t, wsCloudApiUrl))
-	t.Run("ws_gateway", testSendTx(t, wsGatewayUrl))
-	t.Run("grpc_gateway", testSendTx(t, grpcGatewayUrl))
+	t.Run("ws_cloud_api", testSendTx(wsCloudApiUrl))
+	t.Run("ws_gateway", testSendTx(wsGatewayUrl))
+	t.Run("grpc_gateway", testSendTx(grpcGatewayUrl))
 }
 
-func testSendTx(t *testing.T, url testURL) func(t *testing.T) {
+func testSendTx(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
 
 		config := testConfig(t, url)

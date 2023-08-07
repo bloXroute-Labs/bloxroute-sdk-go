@@ -20,6 +20,7 @@ type NewTxNotification struct {
 	RawTx       string                       `json:"rawTx"`
 }
 
+// NewTxNotificationTxContents is the transaction contents object for new transactions
 type NewTxNotificationTxContents struct {
 	AccessList           types.AccessList `json:"accessList"`
 	ChainId              string           `json:"chainId"`
@@ -39,11 +40,13 @@ type NewTxNotificationTxContents struct {
 	Value                string           `json:"value"`
 }
 
+// OnTxStatusNotification represents status of a transaction
 type OnTxStatusNotification struct {
 	TxHash string `json:"txHash"`
 	Status string `json:"status"`
 }
 
+// OnTxReceiptNotification represents transaction receipt
 type OnTxReceiptNotification struct {
 	BlockHash         string                       `json:"blockHash"`
 	BlockNumber       string                       `json:"blockNumber"`
@@ -60,6 +63,7 @@ type OnTxReceiptNotification struct {
 	Type              string                       `json:"type"`
 }
 
+// OnTxReceiptNotificationLog represents transaction receipt log
 type OnTxReceiptNotificationLog struct {
 	Address          string   `json:"address"`
 	Topics           []string `json:"topics"`
@@ -72,6 +76,7 @@ type OnTxReceiptNotificationLog struct {
 	Removed          bool     `json:"removed"`
 }
 
+// Header represents the header of a block
 type Header struct {
 	ParentHash       string `json:"parentHash"`
 	Sha3Uncles       string `json:"sha3Uncles"`
@@ -90,19 +95,21 @@ type Header struct {
 	Nonce            string `json:"nonce"`
 }
 
+// FutureValidatorInfo represents the future validator info of a block
 type FutureValidatorInfo struct {
 	BlockHeight string `json:"block_height"`
 	WalletId    string `json:"wallet_id"`
 	Accessible  string `json:"accessible"`
 }
 
-// Differs for WebSockets and gRPC
+// OnNewBlockTransaction differs for WebSockets and gRPC
 type OnNewBlockTransaction struct {
 	TxHash string `json:"txHash"`
 	RawTx  []byte
 	From   []byte
 }
 
+// OnBdnBlockNotification represents the block notification object for BDN
 type OnBdnBlockNotification struct {
 	Hash                string                  `json:"hash"`
 	Header              *Header                 `json:"header"`
