@@ -32,11 +32,11 @@ func testOnBdnBlock(url testURL) func(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		// wait for the first new tx
+		// wait for the first BDN block
 		select {
 		case <-receive:
 		case <-time.After(time.Minute):
-			require.Fail(t, "timeout waiting for new tx")
+			require.Fail(t, "timeout waiting for BDN block")
 		}
 
 		err = c.UnsubscribeFromBdnBlock()
