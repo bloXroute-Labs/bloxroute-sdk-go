@@ -23,10 +23,11 @@ func testOnNewBlock(url testURL) func(t *testing.T) {
 
 		receive := make(chan struct{})
 
-		err = c.OnNewBlock(context.Background(), &NewBlockParams{Include: []string{"hash"}}, func(ctx context.Context, err error, result *OnBdnBlockNotification) {
+		err = c.OnNewBlock(context.Background(), &NewBlockParams{Include: []string{}}, func(ctx context.Context, err error, result *OnBdnBlockNotification) {
 			require.NoError(t, err)
 			require.NotNilf(t, result, "result is nil")
 			require.NotEmptyf(t, result.Hash, "hash is empty")
+			require.NotEmptyf(t, result.Header, "header is empty")
 
 			close(receive)
 		})

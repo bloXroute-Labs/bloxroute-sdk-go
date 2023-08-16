@@ -10,7 +10,7 @@ import (
 type NewBlockParams struct {
 	// Include is the list of fields to include in the response.
 	// The values of these fields depend on the feed type.
-	// Optional (defaults to ["hash"])
+	// Optional (defaults to ["hash", "header"])
 	Include []string `json:"include"`
 }
 
@@ -21,7 +21,7 @@ func (c *Client) OnNewBlock(ctx context.Context, params *NewBlockParams, callbac
 	}
 
 	if len(params.Include) == 0 {
-		params.Include = []string{"hash"}
+		params.Include = []string{"hash", "header"}
 	}
 
 	wrap := func(ctx context.Context, err error, result any) {
