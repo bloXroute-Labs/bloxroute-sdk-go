@@ -17,29 +17,25 @@ To get started with the Bloxroute Cloud Golang SDK, follow these steps:
 Import the SDK into your project:
 
 ```go
-import "github.com/bloxroute-inc/bloxroute-cloud-go-sdk/sdk"
+import (
+    sdk "github.com/bloXroute-Labs/bloxroute-sdk-go"
+)
 ```
 
-Initialize the SDK Client using Auth Header and WS URL (either cloud API or a gateway):
+Initialize the SDK Client using Auth Header and WS/gRPC URL (either cloud API or a gateway):
 
 ```go
 // create a config
-config := &Config{
-	AuthHeader: os.Getenv("af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m"),
-	CloudAPIURL: os.Getenv("wss://8.210.133.198/ws"),
+config := &sdk.Config{
+	AuthHeader: "af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m",
+	WSCloudAPIURL: "wss://8.210.133.198/ws",
 }
 
 // create a new client
-c, err := NewClient(config)
+c, err := sdk.NewClient(context.Background(), config)
 if err != nil {
-    // handle error
+    log.Fatal(err)
 }
-
-ctx, cancel := context.WithCancel(context.Background())
-defer cancel()
-
-// run the client
-go c.Run(ctx)
 ```
 
 Subscribe to a feed:
@@ -47,11 +43,14 @@ Subscribe to a feed:
 ```go
 
 // subscribe to new transactions
-err := c.OnNewTx(ctx, nil, func(ctx context.Context, result *json.RawMessage) {
-    fmt.Println("new tx", string(*result))
-})
-if err != nil {
-    // handle error
+if err := c.OnNewTx(ctx, &sdk.NewTxParams{Include: []string{"raw_tx"}}, func(ctx context.Context, err error, result *sdk.NewTxNotification) {
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // handle result
+}); err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -59,9 +58,8 @@ Unsubscribe from a feed:
 
 ```go
 // unsubscribe from new transactions
-err := c.UnsubscribeFromNewTxs()
-if err != nil {
-    // handle error
+if err := c.UnsubscribeFromNewTxs(); err != nil {
+    log.Fatal(err)
 }
 ```
 
@@ -69,34 +67,20 @@ Stop the client:
 
 ```go
 // stop the client
-err = c.Close()
-if err != nil {
-    // handle error
+if err = c.Close(); err != nil {
+    log.Fatal(err)
 }
 ```
 
-Another option would be to cancel the context to stop the client:
+## Tests
 
-```go
-ctx, cancel := context.WithCancel(context.Background())
+To run the tests, the following environment variables should be set:
 
-wg := &sync.WaitGroup{}
-wg.Add(1)
-
-go func() {
-	defer wg.Done()
-	
-	err := c.Run(ctx)
-	if err != nil { 
-	    // handle error 
-	}
-}()
-
-// cancel the context
-cancel()
-
-// wait for the client to stop
-wg.Wait()
+```bash
+export AUTH_HEADER=af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m
+export WS_CLOUD_API_URL=wss://api.blxrbdn.com/ws
+export WS_GATEWAY_URL=ws://localhost:28334/ws
+export GRPC_GATEWAY_URL=grpc://localhost:5001
 ```
 
 ## Contributing
@@ -116,4 +100,4 @@ Contact us at [our Discord] for further questions.
 [white paper]: https://bloxroute.com/wp-content/uploads/2019/01/whitepaper-V1.1-1.pdf
 [documentation]: https://docs.bloxroute.com/
 [our Discord]: https://discord.gg/jHgpN8b
-[contributing guide]: https://github.com/bloXroute-Labs/bloxroute-sdk-go-private/blob/master/CONTRIBUTING.md
+[contributing guide]: https://github.com/bloXroute-Labs/bloxroute-sdk-go/blob/master/CONTRIBUTING.md

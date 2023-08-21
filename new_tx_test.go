@@ -2,9 +2,6 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
-	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -12,44 +9,31 @@ import (
 )
 
 func TestOnNewTx(t *testing.T) {
-	t.Run("cloud api", testOnNewTx(t, "CLOUD_API_URL"))
-	t.Run("gateway", testOnNewTx(t, "GATEWAY_URL"))
+	t.Run("ws_cloud_api", testOnNewTx(wsCloudApiUrl))
+	t.Run("ws_gateway", testOnNewTx(wsGatewayUrl))
+	t.Run("grpc_gateway", testOnNewTx(grpcGatewayUrl))
 }
 
-func testOnNewTx(t *testing.T, url string) func(t *testing.T) {
+func testOnNewTx(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
-		config := &Config{
-			AuthHeader: os.Getenv("AUTH_HEADER"),
-		}
-		switch url {
-		case "CLOUD_API_URL":
-			config.CloudAPIURL = os.Getenv("CLOUD_API_URL")
-		case "GATEWAY_URL":
-			config.GatewayURL = os.Getenv("GATEWAY_URL")
-		}
+		config := testConfig(t, url)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
-		defer cancel()
-
-		c, err := NewClient(config)
+		c, err := NewClient(context.Background(), config)
 		require.NoError(t, err)
-
-		started := make(chan struct{})
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			close(started)
-			err := c.Run(ctx)
-			require.NoError(t, err)
-		}()
-
-		<-started
 
 		receive := make(chan struct{})
 
-		err = c.OnNewTx(ctx, nil, func(ctx context.Context, result *json.RawMessage) {
+		err = c.OnNewTx(context.Background(), &NewTxParams{Include: []string{"raw_tx"}}, func(ctx context.Context, err error, result *NewTxNotification) {
+			select {
+			case <-receive:
+				return
+			default:
+			}
+
+			require.NoError(t, err)
+			require.NotNilf(t, result, "result is nil")
+			require.NotEmptyf(t, result.RawTx, "raw tx is empty")
+
 			close(receive)
 		})
 		require.NoError(t, err)
@@ -63,8 +47,6 @@ func testOnNewTx(t *testing.T, url string) func(t *testing.T) {
 
 		err = c.UnsubscribeFromNewTxs()
 		require.NoError(t, err)
-
 		require.NoError(t, c.Close())
-		wg.Wait()
 	}
 }

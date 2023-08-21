@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sourcegraph/jsonrpc2"
-
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
@@ -49,11 +47,7 @@ func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMes
 
 	// set blockchain network to match the config if not set
 	if params.BlockchainNetwork == "" {
-		if c.cloudAPIHandler != nil {
-			params.BlockchainNetwork = c.cloudAPIHandler.config.BlockchainNetwork
-		} else {
-			params.BlockchainNetwork = c.gatewayHandler.config.BlockchainNetwork
-		}
+		params.BlockchainNetwork = c.blockchainNetwork
 	}
 
 	// error if the user is using mainnet and next validator
@@ -61,17 +55,5 @@ func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMes
 		return nil, fmt.Errorf("NextValidator is not supported on Ethereum Mainnet")
 	}
 
-	raw, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal params: %w", err)
-	}
-
-	subRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCTx),
-		Params: (*json.RawMessage)(&raw),
-	}
-
-	return c.request(ctx, subRequest)
-
+	return c.handler.Request(ctx, jsonrpc.RPCTx, params)
 }

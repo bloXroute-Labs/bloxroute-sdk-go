@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/sourcegraph/jsonrpc2"
-
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
@@ -30,26 +28,14 @@ type SendPrivateTxParams struct {
 
 // SendPrivateTx sends a single transaction faster than the p2p network using the BDN
 func (c *Client) SendPrivateTx(ctx context.Context, params *SendPrivateTxParams) (*json.RawMessage, error) {
-
-	// error if the user isn't using the cloud API
-	if c.cloudAPIHandler == nil {
-		return nil, fmt.Errorf("SendPrivateTx is only supported on the cloud API")
-	}
-
-	if c.cloudAPIHandler.config.BlockchainNetwork != "Mainnet" {
+	if c.blockchainNetwork != "Mainnet" {
 		return nil, fmt.Errorf("SendPrivateTx is only supported on Mainnet")
 	}
 
-	raw, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal params: %w", err)
+	// error if the user isn't using the cloud API
+	if c.handler.Type() != handlerSourceTypeCloudAPIWS {
+		return nil, fmt.Errorf("SendPrivateTx is only supported on the cloud API")
 	}
 
-	subRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCPrivateTx),
-		Params: (*json.RawMessage)(&raw),
-	}
-
-	return c.request(ctx, subRequest)
+	return c.handler.Request(ctx, jsonrpc.RPCPrivateTx, params)
 }

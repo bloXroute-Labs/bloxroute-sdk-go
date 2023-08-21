@@ -2,12 +2,7 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
-	"github.com/sourcegraph/jsonrpc2"
-
-	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 	"github.com/bloXroute-Labs/gateway/v2/types"
 )
 
@@ -21,8 +16,8 @@ type TxReceiptParams struct {
 	Include []string `json:"include"`
 }
 
-// OnTxReceipt subscribes to  all transaction receipts in each newly mined block.
-func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callback CallbackFunc) error {
+// OnTxReceipt subscribes to all transaction receipts in each newly mined block.
+func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callbackFunc CallbackFunc[*OnTxReceiptNotification]) error {
 	if params == nil {
 		params = &TxReceiptParams{}
 	}
@@ -32,21 +27,18 @@ func (c *Client) OnTxReceipt(ctx context.Context, params *TxReceiptParams, callb
 		params.Include = []string{"block_hash"}
 	}
 
-	raw, err := json.Marshal([]interface{}{types.TxReceiptsFeed, params})
-	if err != nil {
-		return fmt.Errorf("failed to marshal params: %w", err)
+	wrap := func(ctx context.Context, err error, result any) {
+		if err != nil {
+			callbackFunc(ctx, err, nil)
+			return
+		}
+		callbackFunc(ctx, err, result.(*OnTxReceiptNotification))
 	}
 
-	subRequest := &jsonrpc2.Request{
-		ID:     randomID(),
-		Method: string(jsonrpc.RPCSubscribe),
-		Params: (*json.RawMessage)(&raw),
-	}
-
-	return c.subscribe(ctx, types.NewTxsFeed, subRequest, callback)
+	return c.handler.Subscribe(ctx, types.TxReceiptsFeed, params, wrap)
 }
 
-// UnsubscribeFromNewTxs unsubscribes from new transactions feed
+// UnsubscribeFromTxReceipts unsubscribes from the tx receipts feed.
 func (c *Client) UnsubscribeFromTxReceipts() error {
-	return c.unsubscribeRetry(types.TxReceiptsFeed)
+	return c.handler.UnsubscribeRetry(types.TxReceiptsFeed)
 }
