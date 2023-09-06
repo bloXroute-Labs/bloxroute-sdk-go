@@ -207,20 +207,23 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 			switch f {
 			case types.NewTxsFeed:
 				resp := rawResult.(*pb.TxsReply)
-				result = &NewTxNotification{
-					TxContents: &NewTxNotificationTxContents{
-						From: string(resp.Tx[0].From),
-					},
-					LocalRegion: resp.Tx[0].LocalRegion,
-					Time:        strconv.FormatInt(resp.Tx[0].Time, 10),
-					RawTx:       string(resp.Tx[0].RawTx),
+				for i := range resp.Tx {
+					result = &NewTxNotification{
+						TxContents: &NewTxNotificationTxContents{
+							From: string(resp.Tx[i].From),
+						},
+						LocalRegion: resp.Tx[i].LocalRegion,
+						Time:        strconv.FormatInt(resp.Tx[i].Time, 10),
+						RawTx:       string(resp.Tx[i].RawTx),
+					}
+					callback(ctx, nil, result)
 				}
-
+				continue
 			case types.NewBlocksFeed, types.BDNBlocksFeed:
 				resp := rawResult.(*pb.BlocksReply)
-				futureValidatorInfo := []FutureValidatorInfo{}
+				var futureValidatorInfo []FutureValidatorInfo
 				if resp.FutureValidatorInfo != nil {
-					futureValidatorInfo := make([]FutureValidatorInfo, len(resp.FutureValidatorInfo))
+					futureValidatorInfo = make([]FutureValidatorInfo, len(resp.FutureValidatorInfo))
 					for i, fv := range resp.FutureValidatorInfo {
 						futureValidatorInfo[i] = FutureValidatorInfo{
 							BlockHeight: fv.BlockHeight,
@@ -229,17 +232,17 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 						}
 					}
 				}
-				transactions := []OnNewBlockTransaction{}
+				var transactions []OnNewBlockTransaction
 				if resp.Transaction != nil {
-					transactions := make([]OnNewBlockTransaction, len(resp.Transaction))
+					transactions = make([]OnNewBlockTransaction, len(resp.Transaction))
 					for i, fv := range resp.Transaction {
 						transactions[i] = OnNewBlockTransaction{
 							From:  fv.From,
-							RawTx: []byte(fv.RawTx),
+							RawTx: fv.RawTx,
 						}
 					}
 				}
-				header := &Header{}
+				var header *Header
 				if resp.Header != nil {
 					header = &Header{
 						ParentHash:       resp.Header.WithdrawalsRoot,
