@@ -71,6 +71,18 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
+	case types.PendingTxsFeed:
+		params := req.(*PendingTxParams)
+		var stream pb.Gateway_PendingTxsClient
+		stream, err = h.client.PendingTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include, AuthHeader: h.config.AuthHeader})
+		if err != nil {
+			cancel()
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
+		}
+
+		wrapStream = func() (any, error) {
+			return stream.Recv()
+		}
 	case types.NewBlocksFeed:
 		params := req.(*NewBlockParams)
 		var stream pb.Gateway_NewBlocksClient
