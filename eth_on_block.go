@@ -86,7 +86,7 @@ type OnBlockParamsBlockNumber struct {
 // OnBlock subscribes to stream of changes in the EVM state when a new block is mined
 func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFunc CallbackFunc[*OnBlockNotification]) error {
 	if params == nil {
-		return fmt.Errorf("params is nil or empty")
+		return ErrNilParams
 	}
 	if len(params.CallParams) == 0 {
 		return fmt.Errorf("at least one call_params is required")

@@ -1,6 +1,15 @@
 package bloxroute_sdk_go
 
-import "github.com/ethereum/go-ethereum/core/types"
+import (
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+	"github.com/ethereum/go-ethereum/core/types"
+)
+
+const (
+	RPCBSCGetBundlePrice jsonrpc.RPCRequestType = "bsc_get_bundle_price"
+	RPCBSCPrivateTx      jsonrpc.RPCRequestType = "bsc_private_tx"
+	RPCPolygonPrivateTx  jsonrpc.RPCRequestType = "polygon_private_tx"
+)
 
 // OnBlockNotification represents the result of an RPC call on published block
 type OnBlockNotification struct {

@@ -36,6 +36,7 @@ func testMonitorTxs(url testURL) func(t *testing.T) {
 			context.Background(),
 			&NewTxParams{Include: []string{"tx_hash", "raw_tx"}},
 			func(ctx context.Context, err error, result *NewTxNotification) {
+				require.NoError(t, err)
 				mutex.Lock()
 				defer mutex.Unlock()
 				txs[result.TxHash] = result.RawTx
@@ -72,6 +73,7 @@ func testMonitorTxs(url testURL) func(t *testing.T) {
 		require.Error(t, err)
 
 		onTxStatusParams.Callback = func(ctx context.Context, err error, result *OnTxStatusNotification) {
+			require.NoError(t, err)
 			if result.TxHash == txHashes[0] {
 				// add second transaction to monitor
 				monitorTxsParams := &MonitorTxsParams{
