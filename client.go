@@ -26,7 +26,10 @@ const (
 	handlerSourceTypeGatewayGRPC
 )
 
-var ErrClientNotInitialized = errors.New("client not initialized")
+var (
+	ErrClientNotInitialized = errors.New("client not initialized")
+	ErrNilParams            = errors.New("params cannot be nil")
+)
 
 type handler interface {
 	Type() handlerSourceType
