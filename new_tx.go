@@ -24,7 +24,7 @@ const (
 type NewTxParams struct {
 	// Include is the list of fields to include in the response.
 	// The values of these fields depend on the feed type.
-	// Optional (defaults to ["tx_hash"])
+	// Optional (defaults to ["tx_hash"] for WS and ["raw_tx"] for GRPC)
 	Include []string `json:"include"`
 
 	// Duplicates indicates whether to include transactions already published in the feed
@@ -52,7 +52,11 @@ func (c *Client) OnNewTx(ctx context.Context, params *NewTxParams, callbackFunc 
 
 	// add at least tx_hash to the include list
 	if len(params.Include) == 0 {
-		params.Include = []string{"tx_hash"}
+		if c.handler.Type() != handlerSourceTypeGatewayGRPC {
+			params.Include = []string{"tx_hash"}
+		} else {
+			params.Include = []string{"raw_tx"}
+		}
 	}
 
 	wrap := func(ctx context.Context, err error, result any) {

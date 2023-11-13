@@ -63,7 +63,7 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 	case types.NewTxsFeed:
 		params := req.(*NewTxParams)
 		var stream pb.Gateway_NewTxsClient
-		stream, err = h.client.NewTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include, AuthHeader: h.config.AuthHeader})
+		stream, err = h.client.NewTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include})
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
@@ -74,7 +74,7 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 	case types.PendingTxsFeed:
 		params := req.(*PendingTxParams)
 		var stream pb.Gateway_PendingTxsClient
-		stream, err = h.client.PendingTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include, AuthHeader: h.config.AuthHeader})
+		stream, err = h.client.PendingTxs(subCtx, &pb.TxsRequest{Filters: params.Filters, Includes: params.Include})
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
@@ -86,7 +86,7 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 	case types.NewBlocksFeed:
 		params := req.(*NewBlockParams)
 		var stream pb.Gateway_NewBlocksClient
-		stream, err = h.client.NewBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include, AuthHeader: h.config.AuthHeader})
+		stream, err = h.client.NewBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include})
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
@@ -97,7 +97,7 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 	case types.BDNBlocksFeed:
 		params := req.(*BdnBlockParams)
 		var stream pb.Gateway_BdnBlocksClient
-		stream, err = h.client.BdnBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include, AuthHeader: h.config.AuthHeader})
+		stream, err = h.client.BdnBlocks(subCtx, &pb.BlocksRequest{Includes: params.Include})
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
@@ -133,7 +133,6 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 			Transaction:     sendTxParams.Transaction,
 			NonceMonitoring: sendTxParams.NonceMonitoring,
 			NextValidator:   sendTxParams.NextValidator,
-			AuthHeader:      h.config.AuthHeader,
 		})
 
 		if err != nil {

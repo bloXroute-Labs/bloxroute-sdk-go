@@ -21,11 +21,6 @@ func testMonitorTxs(url testURL) func(t *testing.T) {
 		c, err := NewClient(context.Background(), config)
 		require.NoError(t, err)
 
-		type Transaction struct {
-			TxHash string
-			RawTx  string
-		}
-
 		var wg sync.WaitGroup
 		txs := make(map[string]string)
 		mutex := sync.Mutex{}

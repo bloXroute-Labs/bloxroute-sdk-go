@@ -7,7 +7,7 @@ import (
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
-// SendEthBundleParams
+// SendEthBundleParams is the parameters for sending an MEV bundle
 type SendEthBundleParams struct {
 
 	// The hex-encoded bytes of the transactions (without 0x prefix)
