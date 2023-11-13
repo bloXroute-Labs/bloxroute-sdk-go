@@ -42,7 +42,7 @@ func testOnPendingTx(url testURL) func(t *testing.T) {
 		select {
 		case <-receive:
 		case <-time.After(10 * time.Second):
-			require.Fail(t, "timeout waiting for new tx")
+			require.Fail(t, "timeout waiting for pending tx")
 		}
 
 		err = c.UnsubscribeFromPendingTxs()

@@ -247,7 +247,10 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 
 	// check the subscription ID exists
 	id := jsonrpc2.ID{Str: string(v.GetStringBytes("id")), IsString: true}
+
+	h.lock.Lock()
 	resChan, ok := h.pendingResponse[id]
+	h.lock.Unlock()
 	if ok {
 		return h.handlePendingResponse(id, resChan, v)
 	}
@@ -257,7 +260,9 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		return nil
 	}
 
+	h.lock.Lock()
 	subscription, ok := h.subscriptions[string(v.GetStringBytes("params", "subscription"))]
+	h.lock.Unlock()
 	if !ok {
 		// subscription not found
 		return nil
@@ -288,9 +293,7 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 			return fmt.Errorf("failed to unmarshal new block notification: %w", err)
 		}
 
-	case types.NewTxsFeed:
-		// TODO use fastjson to parse the response
-
+	case types.NewTxsFeed, types.PendingTxsFeed:
 		res = &NewTxNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
@@ -304,8 +307,6 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		}
 
 	case types.TxReceiptsFeed:
-		// TODO use fastjson to parse the response
-
 		res = &OnTxReceiptNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
@@ -319,8 +320,12 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 }
 
 func (h *wsHandler) handlePendingResponse(id jsonrpc2.ID, resChan chan requestResponse, v *fastjson.Value) error {
-	defer delete(h.pendingResponse, id)
-	defer close(resChan)
+	defer func() {
+		close(resChan)
+		h.lock.Lock()
+		delete(h.pendingResponse, id)
+		h.lock.Unlock()
+	}()
 
 	errMessage := v.GetObject("error")
 	if errMessage != nil {
@@ -471,12 +476,16 @@ func (h *wsHandler) waitRequestResponse(ctx context.Context, resChan chan reques
 }
 
 func (h *wsHandler) resubscribeAll(ctx context.Context) {
+	h.lock.Lock()
+
 	subCopy := make([]wsSubscription, 0, len(h.subscriptions))
 	for _, subscription := range h.subscriptions {
 		subCopy = append(subCopy, subscription)
 	}
 	h.subscriptions = make(map[string]wsSubscription)
 	h.feeds = make(map[types.FeedType]feed)
+
+	h.lock.Unlock()
 
 loop:
 	for _, subscription := range subCopy {
