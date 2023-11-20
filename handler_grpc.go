@@ -216,7 +216,7 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 			var result any
 
 			switch f {
-			case types.NewTxsFeed:
+			case types.NewTxsFeed, types.PendingTxsFeed:
 				resp := rawResult.(*pb.TxsReply)
 				for i := range resp.Tx {
 					result = &NewTxNotification{

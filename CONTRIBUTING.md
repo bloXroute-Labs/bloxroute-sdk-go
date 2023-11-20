@@ -13,7 +13,7 @@ Be nice. You can refer to the [Contributor Covenant] for more detail.
 ## Communication
 
 Join [our Discord]! You can meet our developer team there to get a sense of what open issues there are that you can
-contribute to and chat broadly about the bloXroute system. Try to avoid filing Github issues just for a question –
+contribute to and chat broadly about the bloXroute system. Try to avoid filing GitHub issues just for a question –
 you'll get faster results by talking with us directly in Discord.
 
 ## Contributor Workflow
