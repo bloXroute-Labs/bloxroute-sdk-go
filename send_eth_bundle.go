@@ -47,7 +47,7 @@ type SendEthBundleParams struct {
 	// collects backrun reward by default but can be overwritten with this parameter.
 	BackRunMeRewardAddress string `json:"backrunme_reward_address,omitempty"`
 
-	// [Optional, default: bloxroute builder and flashbots builder]
+	// [Optional, default: bloxroute]
 	// A dictionary of MEV builders that should receive the bundle.
 	MevBuilders map[string]string `json:"mev_builders,omitempty"`
 }

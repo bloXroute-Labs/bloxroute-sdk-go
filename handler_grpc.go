@@ -10,13 +10,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
-	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
-	"github.com/bloXroute-Labs/gateway/v2/types"
+	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
+	"github.com/bloXroute-Labs/gateway/v2/types"
 )
 
 type grpcHandler struct {
@@ -105,6 +107,39 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
+	case types.UserIntentsFeed:
+		params := req.(*pb.IntentsRequest)
+		var stream pb.Gateway_IntentsClient
+		stream, err = h.client.Intents(subCtx, params)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
+		}
+		wrapStream = func() (any, error) {
+			return stream.Recv()
+		}
+	case types.UserIntentSolutionsFeed:
+		params := req.(*pb.IntentSolutionsRequest)
+		var stream pb.Gateway_IntentSolutionsClient
+		stream, err = h.client.IntentSolutions(subCtx, params)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
+		}
+		wrapStream = func() (any, error) {
+			return stream.Recv()
+		}
+	case types.TxReceiptsFeed:
+		params := req.(*TxReceiptParams)
+		var stream pb.Gateway_TxReceiptsClient
+		stream, err = h.client.TxReceipts(subCtx, &pb.TxReceiptsRequest{Includes: params.Include})
+		if err != nil {
+			cancel()
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
+		}
+		wrapStream = func() (any, error) {
+			return stream.Recv()
+		}
 	default:
 		cancel()
 		return fmt.Errorf("%s feed type is not yet supported", feed)
@@ -143,6 +178,42 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 		responseJSON, err := json.Marshal(responseMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal tx hash: %w", err)
+		}
+
+		responseRawMessage := json.RawMessage(responseJSON)
+		return &responseRawMessage, nil
+
+	case RPCSubmitIntent:
+		submitIntentReq, ok := params.(*pb.SubmitIntentRequest)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentRequest{}, params)
+		}
+		reply, err := h.client.SubmitIntent(ctx, submitIntentReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to submit intent: %w", err)
+		}
+
+		responseJSON, err := json.Marshal(reply)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal submit intent response: %w", err)
+		}
+
+		responseRawMessage := json.RawMessage(responseJSON)
+		return &responseRawMessage, nil
+
+	case RPCSubmitIntentSolution:
+		submitIntentSolutionReq, ok := params.(*pb.SubmitIntentSolutionRequest)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentSolutionRequest{}, params)
+		}
+		reply, err := h.client.SubmitIntentSolution(ctx, submitIntentSolutionReq)
+		if err != nil {
+			return nil, fmt.Errorf("failed to submit intent solution: %w", err)
+		}
+
+		responseJSON, err := json.Marshal(reply)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal submit intent solution response: %w", err)
 		}
 
 		responseRawMessage := json.RawMessage(responseJSON)
@@ -248,7 +319,7 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 					transactions = make([]OnNewBlockTransaction, len(resp.Transaction))
 					for i, fv := range resp.Transaction {
 						transactions[i] = OnNewBlockTransaction{
-							From:  fv.From,
+							From:  string(fv.From),
 							RawTx: fv.RawTx,
 						}
 					}
@@ -271,13 +342,98 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 						ExtraData:        resp.Header.ExtraData,
 						MixHash:          resp.Header.MixHash,
 						Nonce:            resp.Header.Nonce,
+						BlobGasUsed:      resp.Header.BlobGasUsed,
+						ExcessBlobGas:    resp.Header.ExcessBlobGas,
 					}
 				}
+				if resp.Header.BaseFeePerGas != "" {
+					baseFee, err := strconv.Atoi(resp.Header.BaseFeePerGas)
+					if err != nil {
+						callback(ctx, err, nil)
+						continue
+					}
+					header.BaseFeePerGas = &baseFee
+				}
+				if resp.Header.WithdrawalsRoot != "" {
+					withdrawalsRoot := common.BytesToHash([]byte(resp.Header.WithdrawalsRoot))
+					header.WithdrawalsRoot = &withdrawalsRoot
+				}
+				if resp.Header.ParentBeaconRoot != "" {
+					parentBeaconRoot := common.BytesToHash([]byte(resp.Header.ParentBeaconRoot))
+					header.ParentBeaconRoot = &parentBeaconRoot
+				}
+				var withdrawals []OnBlockWithdrawal
+				if resp.Withdrawals != nil {
+					withdrawals = make([]OnBlockWithdrawal, len(resp.Withdrawals))
+					for i, w := range resp.Withdrawals {
+						withdrawals[i] = OnBlockWithdrawal{
+							Address:        w.Address,
+							Amount:         w.Amount,
+							Index:          w.Index,
+							ValidatorIndex: w.ValidatorIndex,
+						}
+					}
+				}
+
 				result = &OnBdnBlockNotification{
 					Hash:                resp.Hash,
 					Header:              header,
 					FutureValidatorInfo: futureValidatorInfo,
 					Transactions:        transactions,
+					Withdrawals:         withdrawals,
+				}
+			case types.TxReceiptsFeed:
+				resp := rawResult.(*pb.TxReceiptsReply)
+
+				var logs []OnTxReceiptNotificationLog
+				for _, log := range resp.Logs {
+					logs = append(logs, OnTxReceiptNotificationLog{
+						Address:          log.Address,
+						Topics:           log.Topics,
+						Data:             log.Data,
+						BlockNumber:      log.BlockNumber,
+						TransactionHash:  log.TransactionHash,
+						TransactionIndex: log.TransactionIndex,
+						BlockHash:        log.BlockHash,
+						LogIndex:         log.LogIndex,
+						Removed:          log.Removed,
+					})
+				}
+
+				result = &OnTxReceiptNotification{
+					BlockHash:         resp.BlocKHash,
+					BlockNumber:       resp.BlockNumber,
+					ContractAddress:   resp.ContractAddress,
+					CumulativeGasUsed: resp.CumulativeGasUsed,
+					EffectiveGasUsed:  resp.EffectiveGasUsed,
+					From:              resp.From,
+					GasUsed:           resp.GasUsed,
+					Logs:              logs,
+					LogsBloom:         resp.LogsBloom,
+					Status:            resp.Status,
+					To:                resp.To,
+					TransactionHash:   resp.TransactionHash,
+					TransactionIndex:  resp.TransactionIndex,
+					Type:              resp.Type,
+					TxsCount:          resp.TxsCount,
+					BlobGasUsed:       resp.BlobGasUsed,
+					BlobGasPrice:      resp.BlobGasPrice,
+				}
+
+			case types.UserIntentsFeed:
+				resp := rawResult.(*pb.IntentsReply)
+				result = &OnIntentsNotification{
+					DappAddress:   resp.DappAddress,
+					SenderAddress: resp.SenderAddress,
+					IntentID:      resp.IntentId,
+					Intent:        resp.Intent,
+					Timestamp:     resp.Timestamp.String(),
+				}
+			case types.UserIntentSolutionsFeed:
+				resp := rawResult.(*pb.IntentSolutionsReply)
+				result = &OnIntentSolutionsNotification{
+					IntentID:       resp.IntentId,
+					IntentSolution: resp.IntentSolution,
 				}
 			}
 

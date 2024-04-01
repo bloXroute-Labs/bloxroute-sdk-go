@@ -33,7 +33,6 @@ type SendPrivateTxParams struct {
 // accessibility of the next validator and are eventually sent as semi-private
 // transactions (https://docs.bloxroute.com/apis/frontrunning-protection/bsc_private_tx).
 func (c *Client) SendPrivateTx(ctx context.Context, params *SendPrivateTxParams) (*json.RawMessage, error) {
-
 	// error if the user isn't using the cloud API
 	if c.handler.Type() != handlerSourceTypeCloudAPIWS {
 		return nil, fmt.Errorf("SendPrivateTx is only supported on the cloud API")

@@ -11,7 +11,6 @@ import (
 // SendTxParams are the parameters for sending transactions faster with
 // bloxroute & configuring semi-private transactions
 type SendTxParams struct {
-
 	// The hex-encoded bytes of the transaction (without 0x prefix)
 	Transaction string `json:"transaction"`
 
@@ -44,7 +43,6 @@ type SendTxParams struct {
 
 // SendTx sends a single transaction faster than the p2p network using the BDN
 func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMessage, error) {
-
 	// set blockchain network to match the config if not set
 	if params.BlockchainNetwork == "" {
 		params.BlockchainNetwork = c.blockchainNetwork

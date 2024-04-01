@@ -10,12 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
-	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
-	"github.com/bloXroute-Labs/gateway/v2/types"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/sourcegraph/jsonrpc2"
 	"github.com/valyala/fastjson"
+
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+	"github.com/bloXroute-Labs/gateway/v2/types"
+
+	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
 )
 
 const (
@@ -283,38 +285,34 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		res = &OnBdnBlockNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal bdn block notification: %w", err)
+			err = fmt.Errorf("failed to unmarshal bdn block notification: %w", err)
 		}
-
 	case types.NewBlocksFeed:
 		res = &OnBdnBlockNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal new block notification: %w", err)
+			err = fmt.Errorf("failed to unmarshal new block notification: %w", err)
 		}
-
 	case types.NewTxsFeed, types.PendingTxsFeed:
 		res = &NewTxNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal new tx notification: %w", err)
+			err = fmt.Errorf("failed to unmarshal new tx notification: %w", err)
 		}
-
 	case types.TransactionStatusFeed:
 		res = &OnTxStatusNotification{
 			TxHash: string(v.GetStringBytes("params", "result", "tx_hash")),
 			Status: string(v.GetStringBytes("params", "result", "status")),
 		}
-
 	case types.TxReceiptsFeed:
 		res = &OnTxReceiptNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal tx receipt notification: %w", err)
+			err = fmt.Errorf("failed to unmarshal tx receipt notification: %w", err)
 		}
 	}
 
-	subscription.callback(ctx, nil, res)
+	subscription.callback(ctx, err, res)
 
 	return nil
 }
