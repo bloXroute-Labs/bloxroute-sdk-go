@@ -19,7 +19,6 @@ var (
 
 // OnTxStatus subscribes to a stream of transaction statuses
 func (c *Client) OnTxStatus(ctx context.Context, params OnTxStatusParams) error {
-
 	if c.handler.Type() != handlerSourceTypeCloudAPIWS {
 		return ErrCloudAPIOnly
 	}
@@ -98,7 +97,6 @@ func subscribeTransactionStatus(ctx context.Context, h handler, callback Callbac
 	hh := h.(*wsHandler)
 
 	raw, err := json.Marshal([]interface{}{types.TransactionStatusFeed, map[string]any{"include": []string{"tx_hash", "status"}}})
-
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal params: %w", err)
 	}

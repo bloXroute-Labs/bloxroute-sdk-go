@@ -30,6 +30,14 @@ type SendBscBundleParams struct {
 	// are allowed to revert. Default is empty list: the whole bundle
 	// would be excluded if any transaction reverts.
 	RevertingHashes []string `json:"reverting_hashes,omitempty"`
+
+	// [Optional, default: all]
+	// A dictionary of MEV builders that should receive the bundle. For each MEV builder, a signature (which can be an empty string) is required.
+	MevBuilders map[string]string `json:"mev_builders,omitempty"`
+
+	// [Optional, default: False]
+	// A boolean indicating whether it is okay to mix the bundle with other bundles and transactions
+	AvoidMixedBundles bool `json:"avoid_mixed_bundles,omitempty"`
 }
 
 type sendBscBundleParams struct {
@@ -42,11 +50,13 @@ type sendBscBundleParams struct {
 func (c *Client) SendBscBundle(ctx context.Context, params *SendBscBundleParams) (*json.RawMessage, error) {
 	sendBscBundleParams := &sendBscBundleParams{
 		SendBscBundleParams: SendBscBundleParams{
-			Transactions:    params.Transactions,
-			BlockNumber:     params.BlockNumber,
-			MinTimestamp:    params.MinTimestamp,
-			MaxTimestamp:    params.MaxTimestamp,
-			RevertingHashes: params.RevertingHashes,
+			Transactions:      params.Transactions,
+			BlockNumber:       params.BlockNumber,
+			MinTimestamp:      params.MinTimestamp,
+			MaxTimestamp:      params.MaxTimestamp,
+			RevertingHashes:   params.RevertingHashes,
+			MevBuilders:       params.MevBuilders,
+			AvoidMixedBundles: params.AvoidMixedBundles,
 		},
 		BlockchainNetwork: "BSC-Mainnet",
 	}
