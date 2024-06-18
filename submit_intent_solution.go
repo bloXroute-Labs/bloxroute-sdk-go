@@ -3,11 +3,13 @@ package bloxroute_sdk_go
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var ErrSubmitIntentSolutionGatewayOnly = errors.New("SubmitIntentSolution is only supported on the gateway GRPC and WS handlers")
 
 // SubmitIntentSolutionParams is the parameters for submitting an intent solution
 type SubmitIntentSolutionParams struct {
@@ -28,20 +30,14 @@ type SubmitIntentSolutionParams struct {
 	Signature []byte
 }
 
-// SubmitIntentSolutionReply is the reply from the SubmitIntentSolution method
-type SubmitIntentSolutionReply struct {
-	SolutionID string                 `json:"solutionId"`
-	FirstSeen  *timestamppb.Timestamp `json:"first_seen"`
-}
-
 // SubmitIntentSolution submits an intent solution to the BDN
-func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentSolutionParams) (*SubmitIntentSolutionReply, error) {
-	if c.handler.Type() != handlerSourceTypeGatewayGRPC {
-		return nil, fmt.Errorf("submit intent solution is only supported with the gateway GRPC handler")
+func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentSolutionParams) (*json.RawMessage, error) {
+	if c.handler.Type() != handlerSourceTypeGatewayGRPC && c.handler.Type() != handlerSourceTypeGatewayWS {
+		return nil, ErrSubmitIntentSolutionGatewayOnly
 	}
 
 	if params == nil {
-		return nil, fmt.Errorf("params is required")
+		return nil, ErrNilParams
 	}
 
 	if params.SolverAddress == "" {
@@ -64,24 +60,25 @@ func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentS
 		return nil, fmt.Errorf("signature is required")
 	}
 
-	req := &pb.SubmitIntentSolutionRequest{
-		SolverAddress:  params.SolverAddress,
-		IntentId:       params.IntentID,
-		IntentSolution: params.IntentSolution,
-		Hash:           params.Hash,
-		Signature:      params.Signature,
+	var req interface{}
+
+	if c.handler.Type() == handlerSourceTypeGatewayGRPC {
+		req = &pb.SubmitIntentSolutionRequest{
+			SolverAddress:  params.SolverAddress,
+			IntentId:       params.IntentID,
+			IntentSolution: params.IntentSolution,
+			Hash:           params.Hash,
+			Signature:      params.Signature,
+		}
+	} else {
+		req = &RPCSubmitIntentPayloadSolution{
+			SolverAddress:  params.SolverAddress,
+			IntentID:       params.IntentID,
+			IntentSolution: params.IntentSolution,
+			Hash:           params.Hash,
+			Signature:      params.Signature,
+		}
 	}
 
-	res, err := c.handler.Request(ctx, RPCSubmitIntentSolution, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to submit intent solution: %v", err)
-	}
-
-	var reply SubmitIntentSolutionReply
-	err = json.Unmarshal(*res, &reply)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse submit intent solution response: %v", err)
-	}
-
-	return &reply, nil
+	return c.handler.Request(ctx, RPCSubmitIntentSolution, req)
 }

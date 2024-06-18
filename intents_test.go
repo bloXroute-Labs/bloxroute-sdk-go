@@ -2,15 +2,16 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestOnIntents(t *testing.T) {
+	t.Run("ws_gateway", testOnIntents(wsGatewayUrl))
 	t.Run("grpc_gateway", testOnIntents(grpcGatewayUrl))
 }
 
@@ -27,12 +28,8 @@ func testOnIntents(url testURL) func(t *testing.T) {
 
 		receive := make(chan struct{})
 
-		// Get the current timestamp
-		currentTimestamp := time.Now()
-
 		params := &IntentsParams{
 			SolverPrivateKey: solverPrivateKey,
-			FromTimestamp:    timestamppb.New(currentTimestamp),
 		}
 
 		err = c.OnIntents(context.Background(), params, func(ctx context.Context, err error, result *OnIntentsNotification) {
@@ -50,7 +47,11 @@ func testOnIntents(url testURL) func(t *testing.T) {
 
 		subRep, err := submitTestIntent(context.Background(), t, c)
 		require.NoError(t, err)
-		require.NotEmpty(t, subRep.IntentID)
+
+		var resp map[string]string
+		err = json.Unmarshal(*subRep, &resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp["intent_id"])
 
 		select {
 		case <-receive:
