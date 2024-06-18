@@ -2,13 +2,15 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
 	"github.com/bloXroute-Labs/gateway/v2/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var ErrIntentsGatewayOnly = errors.New("OnIntents is only supported on the gateway GRPC and WS handlers")
 
 // IntentsParams is the params object for the OnIntents subscription
 type IntentsParams struct {
@@ -27,9 +29,6 @@ type IntentsParams struct {
 	// Signature is the ECDSA signature of the Hash signed by the solver's private key
 	// Required if SolverPrivateKey is not provided
 	Signature []byte
-
-	// FromTimestamp is an optional timestamp to specify the starting point for receiving intents
-	FromTimestamp *timestamppb.Timestamp `json:"fromTimestamp"`
 }
 
 // OnIntentsNotification is the notification object for the OnIntents subscription
@@ -43,13 +42,12 @@ type OnIntentsNotification struct {
 
 // OnIntents subscribes to a stream of all new intents as they are propagated in the BDN.
 func (c *Client) OnIntents(ctx context.Context, params *IntentsParams, callbackFunc CallbackFunc[*OnIntentsNotification]) error {
-
-	if c.handler.Type() != handlerSourceTypeGatewayGRPC {
-		return fmt.Errorf("OnIntents is only supported for with a GRPC handler")
+	if c.handler.Type() != handlerSourceTypeGatewayGRPC && c.handler.Type() != handlerSourceTypeGatewayWS {
+		return ErrIntentsGatewayOnly
 	}
 
 	if params == nil {
-		return fmt.Errorf("params is required")
+		return ErrNilParams
 	}
 
 	var solverAddress string
@@ -86,12 +84,23 @@ func (c *Client) OnIntents(ctx context.Context, params *IntentsParams, callbackF
 		callbackFunc(ctx, nil, result.(*OnIntentsNotification))
 	}
 
-	req := &pb.IntentsRequest{
-		SolverAddress: solverAddress,
-		Hash:          hash,
-		Signature:     signature,
-		FromTimestamp: params.FromTimestamp,
+	var req interface{}
+
+	if c.handler.Type() == handlerSourceTypeGatewayGRPC {
+		req = &pb.IntentsRequest{
+			SolverAddress: solverAddress,
+			Hash:          hash,
+			Signature:     signature,
+		}
+
+	} else {
+		req = map[string]interface{}{
+			"solver_address": solverAddress,
+			"hash":           hash,
+			"signature":      signature,
+		}
 	}
+
 	return c.handler.Subscribe(ctx, types.UserIntentsFeed, req, wrap)
 }
 

@@ -118,6 +118,7 @@ func (h *wsHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType, 
 	if err != nil {
 		return nil, err
 	}
+
 	return h.waitRequestResponse(ctx, resChan, req)
 }
 
@@ -309,6 +310,19 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
 		if err != nil {
 			err = fmt.Errorf("failed to unmarshal tx receipt notification: %w", err)
+		}
+	case types.UserIntentsFeed:
+		res = &OnIntentsNotification{
+			DappAddress:   string(v.GetStringBytes("params", "result", "dapp_address")),
+			SenderAddress: string(v.GetStringBytes("params", "result", "sender_address")),
+			IntentID:      string(v.GetStringBytes("params", "result", "intent_id")),
+			Intent:        v.GetStringBytes("params", "result", "intent"),
+			Timestamp:     string(v.GetStringBytes("params", "result", "timestamp")),
+		}
+	case types.UserIntentSolutionsFeed:
+		res = &OnIntentSolutionsNotification{
+			IntentID:       string(v.GetStringBytes("params", "result", "intent_id")),
+			IntentSolution: v.GetStringBytes("params", "result", "intent_solution"),
 		}
 	}
 

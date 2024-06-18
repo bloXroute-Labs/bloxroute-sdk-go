@@ -81,7 +81,6 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
 		}
-
 		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
@@ -192,8 +191,11 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 		if err != nil {
 			return nil, fmt.Errorf("failed to submit intent: %w", err)
 		}
-
-		responseJSON, err := json.Marshal(reply)
+		rep := map[string]string{"intent_id": reply.IntentId}
+		if reply.FirstSeen != nil {
+			rep["first_seen"] = reply.FirstSeen.String()
+		}
+		responseJSON, err := json.Marshal(rep)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal submit intent response: %w", err)
 		}
@@ -210,8 +212,11 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 		if err != nil {
 			return nil, fmt.Errorf("failed to submit intent solution: %w", err)
 		}
-
-		responseJSON, err := json.Marshal(reply)
+		rep := map[string]string{"solution_id": reply.SolutionId}
+		if reply.FirstSeen != nil {
+			rep["first_seen"] = reply.FirstSeen.String()
+		}
+		responseJSON, err := json.Marshal(rep)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal submit intent solution response: %w", err)
 		}

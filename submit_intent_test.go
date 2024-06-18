@@ -2,6 +2,7 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 
 func TestSubmitIntent(t *testing.T) {
 	t.Run("grpc_gateway", testSubmitIntent(grpcGatewayUrl))
+	t.Run("ws_gateway", testSubmitIntent(wsGatewayUrl))
 }
 
 func testSubmitIntent(url testURL) func(t *testing.T) {
@@ -20,15 +22,13 @@ func testSubmitIntent(url testURL) func(t *testing.T) {
 		c, err := NewClient(context.Background(), config)
 		require.NoError(t, err)
 
-		reply, err := submitTestIntent(context.Background(), t, c)
+		_, err = submitTestIntent(context.Background(), t, c)
 		require.NoError(t, err)
-		require.NotEmpty(t, reply.IntentID)
-
 		require.NoError(t, c.Close())
 	}
 }
 
-func submitTestIntent(ctx context.Context, t *testing.T, c *Client) (*SubmitIntentReply, error) {
+func submitTestIntent(ctx context.Context, t *testing.T, c *Client) (*json.RawMessage, error) {
 
 	// Get the solver private key from the environment variable
 	solverPrivateKey := os.Getenv("SOLVER_PRIVATE_KEY")

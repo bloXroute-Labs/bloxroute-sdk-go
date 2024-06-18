@@ -10,6 +10,7 @@ import (
 )
 
 func TestOnIntentSolutions(t *testing.T) {
+	t.Run("ws_gateway", testOnIntentSolutions(wsGatewayUrl))
 	t.Run("grpc_gateway", testOnIntentSolutions(grpcGatewayUrl))
 }
 

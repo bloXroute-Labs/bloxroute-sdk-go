@@ -2,12 +2,15 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
 	"github.com/bloXroute-Labs/gateway/v2/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+var ErrIntentsSolutionsGatewayOnly = errors.New("OnIntentSolutions is only supported on the gateway GRPC and WS handlers")
 
 // IntentSolutionsParams is the params object for the OnIntentSolutions subscription
 type IntentSolutionsParams struct {
@@ -36,13 +39,12 @@ type OnIntentSolutionsNotification struct {
 
 // OnIntentSolutions subscribes to a stream of new solutions that match the dappAddress of the subscription as they are propagated in the BDN.
 func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsParams, callbackFunc CallbackFunc[*OnIntentSolutionsNotification]) error {
-
-	if c.handler.Type() != handlerSourceTypeGatewayGRPC {
-		return fmt.Errorf("OnIntentSolutions is only supported for with a GRPC handler")
+	if c.handler.Type() != handlerSourceTypeGatewayGRPC && c.handler.Type() != handlerSourceTypeGatewayWS {
+		return ErrIntentsSolutionsGatewayOnly
 	}
 
 	if params == nil {
-		return fmt.Errorf("params is required")
+		return ErrNilParams
 	}
 
 	var dappAddress string
@@ -80,11 +82,22 @@ func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsP
 		callbackFunc(ctx, nil, msg)
 	}
 
-	req := &pb.IntentSolutionsRequest{
-		DappAddress: dappAddress,
-		Hash:        hash,
-		Signature:   signature,
+	var req interface{}
+
+	if c.handler.Type() == handlerSourceTypeGatewayGRPC {
+		req = &pb.IntentSolutionsRequest{
+			DappAddress: dappAddress,
+			Hash:        hash,
+			Signature:   signature,
+		}
+	} else {
+		req = map[string]interface{}{
+			"dapp_address": dappAddress,
+			"hash":         hash,
+			"signature":    signature,
+		}
 	}
+
 	return c.handler.Subscribe(ctx, types.UserIntentSolutionsFeed, req, wrap)
 }
 

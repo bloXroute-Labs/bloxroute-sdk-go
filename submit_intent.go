@@ -3,10 +3,13 @@ package bloxroute_sdk_go
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
 )
+
+var ErrSubmitIntentGatewayOnly = errors.New("SubmitIntent is only supported on the gateway GRPC and WS handlers")
 
 // SubmitIntentParams is the parameters for submitting an intent
 type SubmitIntentParams struct {
@@ -26,23 +29,14 @@ type SubmitIntentParams struct {
 	Signature []byte
 }
 
-// SubmitIntentReply is the reply from the SubmitIntent method
-type SubmitIntentReply struct {
-	// IntentID is the UUID of the intent
-	IntentID string `json:"intentId"`
-
-	// FirstSeen is the timestamp when intent was first seen in BDN (for now empty)
-	FirstSeen string `json:"first_seen"`
-}
-
 // SubmitIntent submits an intent to the BDN
-func (c *Client) SubmitIntent(ctx context.Context, params *SubmitIntentParams) (*SubmitIntentReply, error) {
-	if c.handler.Type() != handlerSourceTypeGatewayGRPC {
-		return nil, fmt.Errorf("submit intent is only supported with the gateway GRPC handler")
+func (c *Client) SubmitIntent(ctx context.Context, params *SubmitIntentParams) (*json.RawMessage, error) {
+	if c.handler.Type() != handlerSourceTypeGatewayGRPC && c.handler.Type() != handlerSourceTypeGatewayWS {
+		return nil, ErrSubmitIntentGatewayOnly
 	}
 
 	if params == nil {
-		return nil, fmt.Errorf("params is required")
+		return nil, ErrNilParams
 	}
 
 	if params.DappAddress == "" {
@@ -65,24 +59,25 @@ func (c *Client) SubmitIntent(ctx context.Context, params *SubmitIntentParams) (
 		return nil, fmt.Errorf("signature is required")
 	}
 
-	req := &pb.SubmitIntentRequest{
-		DappAddress:   params.DappAddress,
-		SenderAddress: params.SenderAddress,
-		Intent:        params.Intent,
-		Hash:          params.Hash,
-		Signature:     params.Signature,
+	var req interface{}
+
+	if c.handler.Type() == handlerSourceTypeGatewayGRPC {
+		req = &pb.SubmitIntentRequest{
+			DappAddress:   params.DappAddress,
+			SenderAddress: params.SenderAddress,
+			Intent:        params.Intent,
+			Hash:          params.Hash,
+			Signature:     params.Signature,
+		}
+	} else {
+		req = &RPCSubmitIntentPayload{
+			DappAddress:   params.DappAddress,
+			SenderAddress: params.SenderAddress,
+			Intent:        params.Intent,
+			Hash:          params.Hash,
+			Signature:     params.Signature,
+		}
 	}
 
-	res, err := c.handler.Request(ctx, RPCSubmitIntent, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to submit intent: %v", err)
-	}
-
-	var reply SubmitIntentReply
-	err = json.Unmarshal(*res, &reply)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse submit intent response: %v", err)
-	}
-
-	return &reply, nil
+	return c.handler.Request(ctx, RPCSubmitIntent, req)
 }
