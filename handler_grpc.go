@@ -439,6 +439,7 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 				result = &OnIntentSolutionsNotification{
 					IntentID:       resp.IntentId,
 					IntentSolution: resp.IntentSolution,
+					SolutionID:     resp.SolutionId,
 				}
 			}
 
