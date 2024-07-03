@@ -35,6 +35,7 @@ type IntentSolutionsParams struct {
 type OnIntentSolutionsNotification struct {
 	IntentID       string `json:"intentID"`
 	IntentSolution []byte `json:"intentSolution"`
+	SolutionID     string `json:"solutionID"`
 }
 
 // OnIntentSolutions subscribes to a stream of new solutions that match the dappAddress of the subscription as they are propagated in the BDN.

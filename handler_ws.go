@@ -323,6 +323,7 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		res = &OnIntentSolutionsNotification{
 			IntentID:       string(v.GetStringBytes("params", "result", "intent_id")),
 			IntentSolution: v.GetStringBytes("params", "result", "intent_solution"),
+			SolutionID:     string(v.GetStringBytes("params", "result", "solution_id")),
 		}
 	}
 
