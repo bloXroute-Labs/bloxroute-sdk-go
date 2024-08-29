@@ -2,7 +2,7 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"os"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -10,28 +10,39 @@ import (
 )
 
 func TestOnIntentSolutions(t *testing.T) {
-	t.Run("ws_gateway", testOnIntentSolutions(wsGatewayUrl))
-	t.Run("grpc_gateway", testOnIntentSolutions(grpcGatewayUrl))
+	t.Run("ws_gateway_dapp_addr", testOnIntentSolutionsWithDappAddr(wsGatewayUrl))
+	t.Run("ws_gateway_sender_addr", testOnIntentSolutionsWithSenderAddr(wsGatewayUrl))
+	t.Run("grpc_gateway", testOnIntentSolutionsWithDappAddr(grpcGatewayUrl))
 }
 
-func testOnIntentSolutions(url testURL) func(t *testing.T) {
+func testOnIntentSolutionsWithDappAddr(url testURL) func(t *testing.T) {
+	return testOnIntentSolutions(url, true)
+}
+
+func testOnIntentSolutionsWithSenderAddr(url testURL) func(t *testing.T) {
+	return testOnIntentSolutions(url, false)
+}
+
+func testOnIntentSolutions(url testURL, useDApp bool) func(t *testing.T) {
 	return func(t *testing.T) {
 		config := testConfig(t, url)
 
-		// Get the DApp private key from the environment variable
-		dappPrivateKey := os.Getenv("DAPP_PRIVATE_KEY")
-		require.NotEmpty(t, dappPrivateKey)
+		ctx := contextWithSignal(context.Background())
 
-		c, err := NewClient(context.Background(), config)
+		c, err := NewClient(ctx, config)
 		require.NoError(t, err)
 
 		receive := make(chan struct{})
+		submitIntentParams := createdSubmitIntentParams(t)
 
-		params := &IntentSolutionsParams{
-			DappPrivateKey: dappPrivateKey,
+		subscriptionParams := &IntentSolutionsParams{}
+		if useDApp {
+			subscriptionParams.DappPrivateKey = submitIntentParams.DappPrivateKey
+		} else {
+			subscriptionParams.DappPrivateKey = submitIntentParams.SenderPrivateKey
 		}
 
-		err = c.OnIntentSolutions(context.Background(), params, func(ctx context.Context, err error, result *OnIntentSolutionsNotification) {
+		err = c.OnIntentSolutions(ctx, subscriptionParams, func(ctx context.Context, err error, result *OnIntentSolutionsNotification) {
 			require.NoError(t, err)
 			require.NotNilf(t, result, "result is nil")
 			require.NotEmptyf(t, result.IntentID, "intent ID is empty")
@@ -40,7 +51,15 @@ func testOnIntentSolutions(url testURL) func(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		_, err = submitIntentSolutionTest(context.Background(), t, c)
+		subRep, err := c.SubmitIntent(ctx, submitIntentParams)
+		require.NoError(t, err)
+
+		var resp map[string]string
+		err = json.Unmarshal(*subRep, &resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp["intent_id"])
+
+		_, err = c.SubmitIntentSolution(ctx, createSubmitIntentSolutionParams(t, resp["intent_id"], []byte("test intent solution")))
 		require.NoError(t, err)
 
 		select {

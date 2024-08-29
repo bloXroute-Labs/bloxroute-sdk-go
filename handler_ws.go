@@ -385,7 +385,7 @@ func (h *wsHandler) subscribe(ctx context.Context, f types.FeedType, subReq *jso
 	// check if already subscribed
 	_, ok := h.feeds[f]
 	if ok {
-		return nil, fmt.Errorf("already subscribed to %s", types.NewTxsFeed)
+		return nil, fmt.Errorf("already subscribed to %s", f)
 	}
 
 	// connect if not connected

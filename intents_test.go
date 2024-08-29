@@ -45,7 +45,7 @@ func testOnIntents(url testURL) func(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		subRep, err := submitTestIntent(context.Background(), t, c)
+		subRep, err := c.SubmitIntent(context.Background(), createdSubmitIntentParams(t))
 		require.NoError(t, err)
 
 		var resp map[string]string

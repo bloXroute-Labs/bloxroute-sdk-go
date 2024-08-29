@@ -15,10 +15,12 @@ var ErrIntentsSolutionsGatewayOnly = errors.New("OnIntentSolutions is only suppo
 // IntentSolutionsParams is the params object for the OnIntentSolutions subscription
 type IntentSolutionsParams struct {
 	// DappPrivateKey is the private key of your DApp used to prove the ownership of the DApp address
+	// NOTE: It can also be the private key of the sender
 	// Required if DappAddress, Hash, and Signature are not provided
 	DappPrivateKey string
 
 	// DappAddress is the ETH address of the DApp that should receive solutions
+	// NOTE: It can also be the address of the sender
 	// Required if DappPrivateKey is not provided
 	DappAddress string
 
@@ -48,7 +50,7 @@ func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsP
 		return ErrNilParams
 	}
 
-	var dappAddress string
+	var dAppOrSenderAddress string
 	var hash []byte
 	var signature []byte
 
@@ -59,8 +61,8 @@ func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsP
 		}
 
 		publicKey := privateKey.PublicKey
-		dappAddress = crypto.PubkeyToAddress(publicKey).String()
-		hash = crypto.Keccak256Hash([]byte(dappAddress)).Bytes()
+		dAppOrSenderAddress = crypto.PubkeyToAddress(publicKey).String()
+		hash = crypto.Keccak256Hash([]byte(dAppOrSenderAddress)).Bytes()
 		signature, err = crypto.Sign(hash, privateKey)
 		if err != nil {
 			return fmt.Errorf("failed to sign dapp hash: %v", err)
@@ -69,7 +71,7 @@ func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsP
 		if params.DappAddress == "" || len(params.Hash) == 0 || len(params.Signature) == 0 {
 			return fmt.Errorf("dapp address, hash, and signature are required when dapp private key is not provided")
 		}
-		dappAddress = params.DappAddress
+		dAppOrSenderAddress = params.DappAddress
 		hash = params.Hash
 		signature = params.Signature
 	}
@@ -87,13 +89,13 @@ func (c *Client) OnIntentSolutions(ctx context.Context, params *IntentSolutionsP
 
 	if c.handler.Type() == handlerSourceTypeGatewayGRPC {
 		req = &pb.IntentSolutionsRequest{
-			DappAddress: dappAddress,
+			DappAddress: dAppOrSenderAddress,
 			Hash:        hash,
 			Signature:   signature,
 		}
 	} else {
 		req = map[string]interface{}{
-			"dapp_address": dappAddress,
+			"dapp_address": dAppOrSenderAddress,
 			"hash":         hash,
 			"signature":    signature,
 		}
