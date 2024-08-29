@@ -7,12 +7,22 @@ import (
 	"fmt"
 
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
-var ErrSubmitIntentSolutionGatewayOnly = errors.New("SubmitIntentSolution is only supported on the gateway GRPC and WS handlers")
+var (
+	ErrSubmitIntentSolutionGatewayOnly    = errors.New("SubmitIntentSolution is only supported on the gateway GRPC and WS handlers")
+	ErrIntentIDRequired                   = errors.New("intent ID is required")
+	ErrIntentSolutionRequired             = errors.New("intent solution is required")
+	ErrSubmitIntentSolutionParamsRequired = fmt.Errorf("solver address, hash, and signature are required when solver private key is not provided")
+)
 
 // SubmitIntentSolutionParams is the parameters for submitting an intent solution
 type SubmitIntentSolutionParams struct {
+
+	// SolverPrivateKey is the private key of the solver
+	// Required if SolverAddress, Hash, and Signature are not provided
+	SolverPrivateKey string
 
 	// SolverAddress is the address of the solver
 	SolverAddress string
@@ -40,24 +50,27 @@ func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentS
 		return nil, ErrNilParams
 	}
 
-	if params.SolverAddress == "" {
-		return nil, fmt.Errorf("solver address is required")
-	}
-
 	if params.IntentID == "" {
-		return nil, fmt.Errorf("intent ID is required")
+		return nil, ErrIntentIDRequired
 	}
 
 	if len(params.IntentSolution) == 0 {
-		return nil, fmt.Errorf("intent solution is required")
+		return nil, ErrIntentSolutionRequired
 	}
 
-	if len(params.Hash) == 0 {
-		return nil, fmt.Errorf("hash is required")
-	}
-
-	if len(params.Signature) == 0 {
-		return nil, fmt.Errorf("signature is required")
+	if params.SolverPrivateKey != "" {
+		solverPrivateKey, err := crypto.HexToECDSA(params.SolverPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse solver private key: %v", err)
+		}
+		params.SolverAddress = crypto.PubkeyToAddress(solverPrivateKey.PublicKey).Hex()
+		params.Hash = crypto.Keccak256Hash(params.IntentSolution).Bytes()
+		params.Signature, err = crypto.Sign(params.Hash, solverPrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign intentSolutionHash: %v", err)
+		}
+	} else if params.SolverAddress == "" || len(params.Hash) == 0 || len(params.Signature) == 0 {
+		return nil, ErrSubmitIntentSolutionParamsRequired
 	}
 
 	var req interface{}

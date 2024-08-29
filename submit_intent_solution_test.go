@@ -2,6 +2,7 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"testing"
@@ -19,46 +20,37 @@ func testSubmitIntentSolution(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
 		config := testConfig(t, url)
 
-		c, err := NewClient(context.Background(), config)
+		ctx := context.Background()
+
+		c, err := NewClient(ctx, config)
 		require.NoError(t, err)
 
-		_, err = submitIntentSolutionTest(context.Background(), t, c)
+		resp, err := c.SubmitIntent(ctx, createdSubmitIntentParams(t))
+		require.NoError(t, err)
+		require.NoError(t, c.Close())
+
+		var submitIntentResponse map[string]string
+		err = json.Unmarshal(*resp, &submitIntentResponse)
+		require.NoError(t, err)
+		require.NotEmpty(t, submitIntentResponse["intent_id"])
+
+		_, err = c.SubmitIntentSolution(ctx, createSubmitIntentSolutionParams(t, submitIntentResponse["intent_id"], []byte("test intent solution")))
 		require.NoError(t, err)
 		require.NoError(t, c.Close())
 	}
 }
 
-func submitIntentSolutionTest(ctx context.Context, t *testing.T, c *Client) (*json.RawMessage, error) {
-
-	// Get the solver private key from the environment variable
+func createSubmitIntentSolutionParams(t *testing.T, intentID string, intentSolution []byte) *SubmitIntentSolutionParams {
 	solverPrivateKey := os.Getenv("SOLVER_PRIVATE_KEY")
-	require.NotEmpty(t, solverPrivateKey)
-
-	privateKey, err := crypto.HexToECDSA(solverPrivateKey)
-	if err != nil {
-		return nil, err
+	if solverPrivateKey == "" {
+		privateKey, err := crypto.GenerateKey()
+		require.NoError(t, err)
+		solverPrivateKey = hex.EncodeToString(crypto.FromECDSA(privateKey))
 	}
 
-	publicKey := privateKey.PublicKey
-	solverAddress := crypto.PubkeyToAddress(publicKey).Hex()
-
-	// intent solution
-	intentID := "test-intent-solution-id"
-	intentSolution := []byte("test intent solution")
-
-	hash := crypto.Keccak256Hash(intentSolution).Bytes()
-	signature, err := crypto.Sign(hash, privateKey)
-	if err != nil {
-		return nil, err
+	return &SubmitIntentSolutionParams{
+		SolverPrivateKey: solverPrivateKey,
+		IntentID:         intentID,
+		IntentSolution:   intentSolution,
 	}
-
-	params := &SubmitIntentSolutionParams{
-		SolverAddress:  solverAddress,
-		IntentID:       intentID,
-		IntentSolution: intentSolution,
-		Hash:           hash,
-		Signature:      signature,
-	}
-
-	return c.SubmitIntentSolution(ctx, params)
 }
