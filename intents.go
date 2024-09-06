@@ -14,6 +14,10 @@ var ErrIntentsGatewayOnly = errors.New("OnIntents is only supported on the gatew
 
 // IntentsParams is the params object for the OnIntents subscription
 type IntentsParams struct {
+	// DappAddress is the ETH address
+	// If provided, only intents with this DappAddress will be returned
+	DappAddress string `json:"dappAddress"`
+
 	// SolverPrivateKey is the private key of your solver
 	// Required if SolverAddress, Hash, and Signature are not provided
 	SolverPrivateKey string
@@ -92,12 +96,18 @@ func (c *Client) OnIntents(ctx context.Context, params *IntentsParams, callbackF
 			Hash:          hash,
 			Signature:     signature,
 		}
+		if params.DappAddress != "" {
+			req.(*pb.IntentsRequest).Filters = "dapp_address = " + params.DappAddress
+		}
 
 	} else {
 		req = map[string]interface{}{
 			"solver_address": solverAddress,
 			"hash":           hash,
 			"signature":      signature,
+		}
+		if params.DappAddress != "" {
+			req.(map[string]interface{})["filters"] = "dapp_address = " + params.DappAddress
 		}
 	}
 
