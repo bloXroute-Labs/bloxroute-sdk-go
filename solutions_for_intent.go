@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -93,5 +94,5 @@ func (c *Client) GetSolutionsForIntent(ctx context.Context, params *GetSolutions
 		"intent_id":              params.IntentID,
 	}
 
-	return c.handler.Request(ctx, "blxr_get_intent_solutions", req)
+	return c.handler.Request(ctx, jsonrpc.RPCGetIntentSolutions, req)
 }

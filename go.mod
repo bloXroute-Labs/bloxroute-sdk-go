@@ -3,7 +3,7 @@ module github.com/bloXroute-Labs/bloxroute-sdk-go
 go 1.21
 
 require (
-	github.com/bloXroute-Labs/gateway/v2 v2.129.2
+	github.com/bloXroute-Labs/gateway/v2 v2.129.19
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/fasthttp/websocket v1.5.8

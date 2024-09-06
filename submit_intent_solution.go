@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 	pb "github.com/bloXroute-Labs/gateway/v2/protobuf"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -93,5 +94,5 @@ func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentS
 		}
 	}
 
-	return c.handler.Request(ctx, RPCSubmitIntentSolution, req)
+	return c.handler.Request(ctx, jsonrpc.RPCSubmitIntentSolution, req)
 }
