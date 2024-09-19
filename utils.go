@@ -2,16 +2,17 @@ package bloxroute_sdk_go
 
 import (
 	"context"
+	"crypto/rand"
 	_ "embed"
+	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/sourcegraph/jsonrpc2"
+
+	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
 )
 
 //go:embed version.txt
@@ -43,5 +44,15 @@ func reconnect(ctx context.Context, url string, headers http.Header, opts *ws.Di
 }
 
 func randomID() jsonrpc2.ID {
-	return jsonrpc2.ID{Str: strconv.FormatUint(rand.New(rand.NewSource(time.Now().UnixNano())).Uint64(), 10), IsString: true}
+	var idStr string
+
+	var randomBytes [8]byte
+	_, err := rand.Read(randomBytes[:])
+	if err != nil {
+		idStr = "1"
+	} else {
+		idStr = strconv.FormatUint(binary.BigEndian.Uint64(randomBytes[:]), 10)
+	}
+
+	return jsonrpc2.ID{Str: idStr, IsString: true}
 }

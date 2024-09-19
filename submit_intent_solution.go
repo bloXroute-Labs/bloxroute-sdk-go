@@ -20,7 +20,6 @@ var (
 
 // SubmitIntentSolutionParams is the parameters for submitting an intent solution
 type SubmitIntentSolutionParams struct {
-
 	// SolverPrivateKey is the private key of the solver
 	// Required if SolverAddress, Hash, and Signature are not provided
 	SolverPrivateKey string
@@ -85,7 +84,7 @@ func (c *Client) SubmitIntentSolution(ctx context.Context, params *SubmitIntentS
 			Signature:      params.Signature,
 		}
 	} else {
-		req = &RPCSubmitIntentPayloadSolution{
+		req = &jsonrpc.RPCSubmitIntentSolutionPayload{
 			SolverAddress:  params.SolverAddress,
 			IntentID:       params.IntentID,
 			IntentSolution: params.IntentSolution,

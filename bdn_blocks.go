@@ -6,7 +6,7 @@ import (
 	"github.com/bloXroute-Labs/gateway/v2/types"
 )
 
-// BdnBlockParams is the params object for the OnNewBlock subscription
+// BdnBlockParams is the params object for the OnNewBlock subscription.
 type BdnBlockParams struct {
 	// Include is the list of fields to include in the response.
 	// The values of these fields depend on the feed type.
@@ -31,7 +31,7 @@ func (c *Client) OnBdnBlock(ctx context.Context, params *BdnBlockParams, callbac
 	return c.handler.Subscribe(ctx, types.BDNBlocksFeed, params, wrap)
 }
 
-// UnsubscribeFromBdnBlock unsubscribes from the OnBdnBlock subscription
+// UnsubscribeFromBdnBlock unsubscribes from the OnBdnBlock subscription.
 func (c *Client) UnsubscribeFromBdnBlock() error {
 	return c.handler.UnsubscribeRetry(types.BDNBlocksFeed)
 }

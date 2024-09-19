@@ -39,16 +39,16 @@ type handler interface {
 	Close() error
 }
 
-// Client is a client for the bloXroute cloud API
+// Client is a client for the bloXroute cloud API.
 type Client struct {
 	handler           handler
 	blockchainNetwork string
 	initialized       bool
 }
 
-// NewClient creates a new SDK client
+// NewClient creates a new SDK client.
 // Note: the client is not connected to the cloud API until Connect() is called
-// or a subscription is made
+// or a subscription is made.
 func NewClient(ctx context.Context, config *Config) (*Client, error) {
 	err := config.validate()
 	if err != nil {
@@ -82,7 +82,7 @@ func (c *Client) Close() (err error) {
 
 func (c *Client) connect(ctx context.Context, config *Config) error {
 	if config.GRPCGatewayURL != "" {
-		grpcConn, err := grpc.DialContext(ctx, strings.TrimPrefix(config.GRPCGatewayURL, "grpc://"), config.GRPCDialOptions...)
+		grpcConn, err := grpc.NewClient(strings.TrimPrefix(config.GRPCGatewayURL, "grpc://"), config.GRPCDialOptions...)
 		if err != nil {
 			return fmt.Errorf("failed to create GRPC connection: %w", err)
 		}

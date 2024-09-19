@@ -169,6 +169,7 @@ func (h *wsHandler) UnsubscribeRetry(f types.FeedType) error {
 // read blocks until the context is canceled, an error occurs or the client is closed.
 func (h *wsHandler) read(ctx context.Context) {
 	defer h.wg.Done()
+
 	for {
 		select {
 		case <-h.stop:
@@ -281,7 +282,6 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 			BlockHeight: string(v.GetStringBytes("params", "result", "block_height")),
 			Tag:         string(v.GetStringBytes("params", "result", "tag")),
 		}
-
 	case types.BDNBlocksFeed:
 		res = &OnBdnBlockNotification{}
 		err = json.Unmarshal(v.GetObject("params", "result").MarshalTo(nil), &res)
@@ -324,6 +324,14 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 			IntentID:       string(v.GetStringBytes("params", "result", "intent_id")),
 			IntentSolution: v.GetStringBytes("params", "result", "intent_solution"),
 			SolutionID:     string(v.GetStringBytes("params", "result", "solution_id")),
+		}
+	case types.QuotesFeed:
+		res = &OnQuotesNotification{
+			DappAddress:   string(v.GetStringBytes("params", "result", "dapp_address")),
+			QuoteID:       string(v.GetStringBytes("params", "result", "quote_id")),
+			SolverAddress: string(v.GetStringBytes("params", "result", "solver_address")),
+			Quote:         v.GetStringBytes("params", "result", "quote"),
+			Timestamp:     string(v.GetStringBytes("params", "result", "timestamp")),
 		}
 	}
 
@@ -435,7 +443,7 @@ func (h *wsHandler) waitSubscriptionResponse(ctx context.Context, resChan chan r
 		delete(h.pendingResponse, subReq.ID)
 		delete(h.feeds, feedType)
 
-		return "", fmt.Errorf("didn't receive response for %s subscribtion request within %s", feedType, requestWaitTimeout)
+		return "", fmt.Errorf("didn't receive response for %s subscription request within %s", feedType, requestWaitTimeout)
 	}
 }
 

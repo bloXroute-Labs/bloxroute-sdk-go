@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
@@ -44,7 +45,7 @@ func (c *Client) SendPrivateTx(ctx context.Context, params *SendPrivateTxParams)
 
 	requestType := jsonrpc.RPCPrivateTx
 
-	if c.blockchainNetwork != "Mainnet" {
+	if c.blockchainNetwork != bxgateway.Mainnet {
 		// if any other params are set, error
 		if params.MevBuilders != nil || params.Frontrunning || params.Timeout != 0 {
 			return nil, fmt.Errorf("only the 'Transaction' field is supported for %s", c.blockchainNetwork)

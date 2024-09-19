@@ -19,7 +19,7 @@ type IntentSolutionsParams struct {
 	// Required if DappAddress, Hash, and Signature are not provided
 	DappPrivateKey string
 
-	// DappAddress is the ETH address of the DApp that should receive solutions
+	// DappAddress is the ETH address of the DApp or the sender
 	// NOTE: It can also be the address of the sender
 	// Required if DappPrivateKey is not provided
 	DappAddress string

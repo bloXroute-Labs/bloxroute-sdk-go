@@ -25,7 +25,7 @@ type connection struct {
 	fastHTTPConn *websocket.Conn
 }
 
-// Dial dials websocket connection which is safe to use in goroutines
+// Dial dials websocket connection which is safe to use in goroutines.
 func Dial(ctx context.Context, url string, headers http.Header, opts *DialOptions) (Conn, error) {
 	c := &connection{
 		remoteAddress: url,
@@ -53,9 +53,15 @@ func Dial(ctx context.Context, url string, headers http.Header, opts *DialOption
 	}
 
 	var err error
-	c.fastHTTPConn, _, err = dialer.DialContext(ctx, url, headers)
+	var resp *http.Response
+	c.fastHTTPConn, resp, err = dialer.DialContext(ctx, url, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial websocket connection: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		return nil, fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
 
 	c.fastHTTPConn.SetReadLimit(messageSizeLimit)
@@ -65,7 +71,7 @@ func Dial(ctx context.Context, url string, headers http.Header, opts *DialOption
 	return c, nil
 }
 
-// ReadMessage reads text message from websocket connection
+// ReadMessage reads text message from websocket connection.
 func (c *connection) ReadMessage(ctx context.Context) (data []byte, err error) {
 	select {
 	case <-ctx.Done():
@@ -84,7 +90,7 @@ func (c *connection) ReadMessage(ctx context.Context) (data []byte, err error) {
 	return data, err
 }
 
-// WriteJSON writes JSON message to websocket connection
+// WriteJSON writes JSON message to websocket connection.
 func (c *connection) WriteJSON(ctx context.Context, v interface{}) error {
 	select {
 	case <-c.closed:
@@ -114,8 +120,8 @@ func (c *connection) write() {
 	}
 }
 
-// Close closes websocket connection
-// It is safe to call Close multiple times
+// Close closes websocket connection.
+// It is safe to call Close multiple times.
 func (c *connection) Close() error {
 	select {
 	case <-c.closed:
@@ -136,7 +142,7 @@ func (c *connection) Close() error {
 	return nil
 }
 
-// IsWSClosedError checks if error is websocket close error
+// IsWSClosedError checks if error is websocket close error.
 func IsWSClosedError(err error) bool {
 	if err == nil {
 		return false
@@ -156,8 +162,8 @@ func IsWSClosedError(err error) bool {
 	return false
 }
 
-// writeTimeoutJSON writes JSON message to websocket connection with timeout
-// should not be used for concurrent writes
+// writeTimeoutJSON writes JSON message to websocket connection with timeout.
+// It should not be used for concurrent writes.
 func (c *connection) writeTimeoutJSON(msg interface{}) error {
 	return c.fastHTTPConn.WriteJSON(msg)
 }

@@ -139,6 +139,17 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
+	case types.QuotesFeed:
+		params := req.(*pb.QuotesRequest)
+		var stream pb.Gateway_QuotesClient
+		stream, err = h.client.Quotes(subCtx, params)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
+		}
+		wrapStream = func() (any, error) {
+			return stream.Recv()
+		}
 	default:
 		cancel()
 		return fmt.Errorf("%s feed type is not yet supported", feed)
@@ -156,6 +167,8 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 
 	ctx = metadata.NewOutgoingContext(ctx, h.md)
 
+	var response map[string]interface{}
+
 	switch method {
 	case jsonrpc.RPCTx:
 		sendTxParams, ok := params.(*SendTxParams)
@@ -168,21 +181,11 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 			NonceMonitoring: sendTxParams.NonceMonitoring,
 			NextValidator:   sendTxParams.NextValidator,
 		})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to send tx: %w", err)
 		}
-
-		responseMap := map[string]string{"tx_hash": reply.TxHash}
-		responseJSON, err := json.Marshal(responseMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal tx hash: %w", err)
-		}
-
-		responseRawMessage := json.RawMessage(responseJSON)
-		return &responseRawMessage, nil
-
-	case RPCSubmitIntent:
+		response = map[string]interface{}{"tx_hash": reply.TxHash}
+	case jsonrpc.RPCSubmitIntent:
 		submitIntentReq, ok := params.(*pb.SubmitIntentRequest)
 		if !ok {
 			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentRequest{}, params)
@@ -191,19 +194,11 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 		if err != nil {
 			return nil, fmt.Errorf("failed to submit intent: %w", err)
 		}
-		rep := map[string]string{"intent_id": reply.IntentId}
+		response = map[string]interface{}{"intent_id": reply.IntentId}
 		if reply.FirstSeen != nil {
-			rep["first_seen"] = reply.FirstSeen.String()
+			response["first_seen"] = reply.FirstSeen.String()
 		}
-		responseJSON, err := json.Marshal(rep)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal submit intent response: %w", err)
-		}
-
-		responseRawMessage := json.RawMessage(responseJSON)
-		return &responseRawMessage, nil
-
-	case RPCSubmitIntentSolution:
+	case jsonrpc.RPCSubmitIntentSolution:
 		submitIntentSolutionReq, ok := params.(*pb.SubmitIntentSolutionRequest)
 		if !ok {
 			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentSolutionRequest{}, params)
@@ -212,24 +207,38 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 		if err != nil {
 			return nil, fmt.Errorf("failed to submit intent solution: %w", err)
 		}
-		rep := map[string]string{"solution_id": reply.SolutionId}
+		response = map[string]interface{}{"solution_id": reply.SolutionId}
 		if reply.FirstSeen != nil {
-			rep["first_seen"] = reply.FirstSeen.String()
+			response["first_seen"] = reply.FirstSeen.String()
 		}
-		responseJSON, err := json.Marshal(rep)
+	case jsonrpc.RPCSubmitQuote:
+		submitQuoteReq, ok := params.(*pb.SubmitQuoteRequest)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitQuoteRequest{}, params)
+		}
+		reply, err := h.client.SubmitQuote(ctx, submitQuoteReq)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal submit intent solution response: %w", err)
+			return nil, fmt.Errorf("failed to submit quote: %w", err)
 		}
-
-		responseRawMessage := json.RawMessage(responseJSON)
-		return &responseRawMessage, nil
-
+		response = map[string]interface{}{"quote_id": reply.QuoteId}
+		if reply.FirstSeen != nil {
+			response["first_seen"] = reply.FirstSeen.String()
+		}
 	default:
 		return nil, fmt.Errorf("%s grpc request is not yet supported", method)
 	}
+
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal tx hash: %w", err)
+	}
+
+	responseRawMessage := json.RawMessage(responseJSON)
+
+	return &responseRawMessage, nil
 }
 
-// UnsubscribeRetry unsubscribes from a feed
+// UnsubscribeRetry unsubscribes from a feed.
 func (h *grpcHandler) UnsubscribeRetry(f types.FeedType) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -251,7 +260,7 @@ func (h *grpcHandler) UnsubscribeRetry(f types.FeedType) error {
 	return nil
 }
 
-// Close closes the gRPC connection
+// Close closes the gRPC connection.
 func (h *grpcHandler) Close() error {
 	err := h.conn.Close()
 
@@ -308,6 +317,7 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 				continue
 			case types.NewBlocksFeed, types.BDNBlocksFeed:
 				resp := rawResult.(*pb.BlocksReply)
+
 				var futureValidatorInfo []FutureValidatorInfo
 				if resp.FutureValidatorInfo != nil {
 					futureValidatorInfo = make([]FutureValidatorInfo, len(resp.FutureValidatorInfo))
@@ -440,6 +450,15 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 					IntentID:       resp.IntentId,
 					IntentSolution: resp.IntentSolution,
 					SolutionID:     resp.SolutionId,
+				}
+			case types.QuotesFeed:
+				resp := rawResult.(*pb.QuotesReply)
+				result = &OnQuotesNotification{
+					QuoteID:       resp.QuoteId,
+					Quote:         resp.Quote,
+					DappAddress:   resp.DappAddress,
+					SolverAddress: resp.SolverAddress,
+					Timestamp:     resp.Timestamp.String(),
 				}
 			}
 

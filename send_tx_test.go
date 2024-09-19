@@ -16,7 +16,6 @@ func TestSendTx(t *testing.T) {
 
 func testSendTx(url testURL) func(t *testing.T) {
 	return func(t *testing.T) {
-
 		config := testConfig(t, url)
 
 		// get tx bytes from os env and error if not found

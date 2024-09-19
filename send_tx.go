@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
@@ -49,7 +50,7 @@ func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMes
 	}
 
 	// error if the user is using mainnet and next validator
-	if params.BlockchainNetwork == "Mainnet" && params.NextValidator {
+	if params.BlockchainNetwork == bxgateway.Mainnet && params.NextValidator {
 		return nil, fmt.Errorf("NextValidator is not supported on Ethereum Mainnet")
 	}
 

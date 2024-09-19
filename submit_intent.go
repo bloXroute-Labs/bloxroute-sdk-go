@@ -95,7 +95,7 @@ func (c *Client) SubmitIntent(ctx context.Context, params *SubmitIntentParams) (
 			Signature:     params.Signature,
 		}
 	} else {
-		req = &RPCSubmitIntentPayload{
+		req = &jsonrpc.RPCSubmitIntentPayload{
 			DappAddress:   params.DappAddress,
 			SenderAddress: params.SenderAddress,
 			Intent:        params.Intent,

@@ -8,13 +8,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
+	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
 )
 
 var (
-	ErrorNilConfig           = errors.New("config is nil")
+	ErrNilConfig             = errors.New("config is nil")
 	ErrEndpointNotProvided   = errors.New("either cloud API or gateway URL must be provided")
 	ErrAuthHeaderNotProvided = errors.New("either auth header or account ID and secret must be provided")
 )
@@ -93,7 +95,7 @@ type logger interface {
 
 func (c *Config) validate() error {
 	if c == nil {
-		return ErrorNilConfig
+		return ErrNilConfig
 	}
 
 	if c.WSCloudAPIURL == "" && c.WSGatewayURL == "" && c.GRPCGatewayURL == "" {
@@ -126,7 +128,7 @@ func (c *Config) setDefaults() {
 	}
 
 	if c.BlockchainNetwork == "" {
-		c.BlockchainNetwork = "Mainnet"
+		c.BlockchainNetwork = bxgateway.Mainnet
 	}
 
 	if len(c.GRPCDialOptions) == 0 {

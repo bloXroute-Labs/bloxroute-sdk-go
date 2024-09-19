@@ -93,7 +93,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var authHeader = "af84h0p4TR79MKqh909b9yj4BwxxGL4ueWm0QZiCB88OzYelc7QOG2GB9QPMUefZ01wsgu7efSL4Mj6m6KPp0qFhN74m"
+var authHeader = "my-auth-header"
 
 func intentsGRPC(ctx context.Context) error {
 	creds := credentials.NewClientTLSFromCert(nil, "")
