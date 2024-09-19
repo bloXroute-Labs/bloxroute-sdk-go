@@ -9,10 +9,10 @@ import (
 
 const DefaultHandshakeTimeout = 15 * time.Second
 
-// ErrAlreadyClosed is returned when trying to read/write from/to closed connection
+// ErrAlreadyClosed is returned when trying to read/write from/to closed connection.
 var ErrAlreadyClosed = errors.New("websocket connection is closed")
 
-// Conn provides interface for websocket connection
+// Conn provides interface for websocket connection.
 type Conn interface {
 	ReadMessage(context.Context) ([]byte, error)
 	WriteJSON(context.Context, interface{}) error

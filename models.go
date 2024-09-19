@@ -8,11 +8,9 @@ import (
 )
 
 const (
-	RPCBSCGetBundlePrice    jsonrpc.RPCRequestType = "bsc_get_bundle_price"
-	RPCBSCPrivateTx         jsonrpc.RPCRequestType = "bsc_private_tx"
-	RPCPolygonPrivateTx     jsonrpc.RPCRequestType = "polygon_private_tx"
-	RPCSubmitIntent         jsonrpc.RPCRequestType = "blxr_submit_intent"
-	RPCSubmitIntentSolution jsonrpc.RPCRequestType = "blxr_submit_intent_solution"
+	RPCBSCGetBundlePrice jsonrpc.RPCRequestType = "bsc_get_bundle_price"
+	RPCBSCPrivateTx      jsonrpc.RPCRequestType = "bsc_private_tx"
+	RPCPolygonPrivateTx  jsonrpc.RPCRequestType = "polygon_private_tx"
 )
 
 // OnBlockNotification represents the result of an RPC call on published block
@@ -165,22 +163,4 @@ type OnBdnBlockNotification struct {
 	FutureValidatorInfo []FutureValidatorInfo   `json:"future_validator_info"`
 	Transactions        []OnNewBlockTransaction `json:"transactions"`
 	Withdrawals         []OnBlockWithdrawal     `json:"withdrawals"`
-}
-
-// RPCSubmitIntentPayload is the payload of blxr_submit_intent request
-type RPCSubmitIntentPayload struct {
-	DappAddress   string `json:"dapp_address"`
-	SenderAddress string `json:"sender_address"`
-	Intent        []byte `json:"intent"`
-	Hash          []byte `json:"hash"`
-	Signature     []byte `json:"signature"`
-}
-
-// RPCSubmitIntentPayloadSolution is the payload of blxr_submit_intent_solution request
-type RPCSubmitIntentPayloadSolution struct {
-	SolverAddress  string `json:"solver_address"`
-	IntentID       string `json:"intent_id"`
-	IntentSolution []byte `json:"intent_solution"`
-	Hash           []byte `json:"hash"`
-	Signature      []byte `json:"signature"`
 }

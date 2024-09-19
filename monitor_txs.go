@@ -186,5 +186,4 @@ func (c *Client) StopMonitoringTx(ctx context.Context, params *StopMonitoringTxP
 	}
 
 	return nil
-
 }

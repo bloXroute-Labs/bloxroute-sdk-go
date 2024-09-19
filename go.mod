@@ -3,7 +3,7 @@ module github.com/bloXroute-Labs/bloxroute-sdk-go
 go 1.21
 
 require (
-	github.com/bloXroute-Labs/gateway/v2 v2.129.19
+	github.com/bloXroute-Labs/gateway/v2 v2.129.28
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/fasthttp/websocket v1.5.8
@@ -27,7 +27,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.2 // indirect
 	github.com/fluent/fluent-logger-golang v1.9.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.1 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.17.1 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect

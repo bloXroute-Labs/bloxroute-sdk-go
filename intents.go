@@ -96,16 +96,17 @@ func (c *Client) OnIntents(ctx context.Context, params *IntentsParams, callbackF
 			Hash:          hash,
 			Signature:     signature,
 		}
+
 		if params.DappAddress != "" {
 			req.(*pb.IntentsRequest).Filters = "dapp_address = " + params.DappAddress
 		}
-
 	} else {
 		req = map[string]interface{}{
 			"solver_address": solverAddress,
 			"hash":           hash,
 			"signature":      signature,
 		}
+
 		if params.DappAddress != "" {
 			req.(map[string]interface{})["filters"] = "dapp_address = " + params.DappAddress
 		}

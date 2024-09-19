@@ -19,7 +19,6 @@ func TestClient_OnBlock(t *testing.T) {
 }
 
 func testOnBlock(method string) func(t *testing.T) {
-
 	testAddress := "0xCbe321c620071307Ba5d0381c886B7359763735E"
 
 	return func(t *testing.T) {
