@@ -77,12 +77,12 @@ type Config struct {
 	// Optional (default: true)
 	Reconnect *bool
 
-	// Logger is the logger used by the SDK
+	// Logger is the Logger used by the SDK
 	// Optional (default: no logging)
-	Logger logger
+	Logger Logger
 }
 
-type logger interface {
+type Logger interface {
 	Debug(args ...interface{})
 	Debugf(format string, args ...interface{})
 	Info(args ...interface{})
@@ -124,7 +124,7 @@ func (c *Config) setDefaults() {
 	}
 
 	if c.Logger == nil {
-		c.Logger = &noopLogger{}
+		c.Logger = &NoopLogger{}
 	}
 
 	if c.BlockchainNetwork == "" {

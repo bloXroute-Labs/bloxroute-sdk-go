@@ -3,15 +3,16 @@ module github.com/bloXroute-Labs/bloxroute-sdk-go
 go 1.21
 
 require (
-	github.com/bloXroute-Labs/gateway/v2 v2.129.28
+	github.com/bloXroute-Labs/gateway/v2 v2.129.37
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/fasthttp/websocket v1.5.8
+	github.com/miguelmota/go-solidity-sha3 v0.1.1
 	github.com/sourcegraph/jsonrpc2 v0.2.0
 	github.com/stretchr/testify v1.9.0
 	github.com/valyala/fastjson v1.6.4
-	golang.org/x/sync v0.7.0
-	google.golang.org/grpc v1.64.0
+	golang.org/x/sync v0.8.0
+	google.golang.org/grpc v1.67.1
 )
 
 require (
@@ -55,19 +56,16 @@ require (
 	github.com/tinylib/msgp v1.1.9 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.53.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.26.0 // indirect
 	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842 // indirect
-	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240521202816-d264139d666e // indirect
-	google.golang.org/protobuf v1.34.1 // indirect
+	golang.org/x/net v0.28.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
-
-// Used in prysm which also has replace for this but for some reason go list which is used in some IDEs does not recognize semver before replace
-replace github.com/MariusVanDerWijden/tx-fuzz => github.com/marcopolo/tx-fuzz v0.0.0-20220927011827-b5c461bc7cae
