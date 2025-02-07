@@ -51,6 +51,9 @@ type SendBscBundleParams struct {
 	// From protocol version 52
 	BlocksCount      int      `json:"blocks_count,omitempty"`
 	DroppingTxHashes []string `json:"dropping_tx_hashes,omitempty"`
+
+	// From protocol version 53
+	EndOfBlock bool `json:"end_of_block"`
 }
 
 type sendBscBundleParams struct {
