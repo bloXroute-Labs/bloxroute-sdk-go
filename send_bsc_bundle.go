@@ -9,6 +9,9 @@ import (
 
 // SendBscBundleParams is the parameters for sending a bundle of transactions
 type SendBscBundleParams struct {
+	// [Optional, default: all]
+	// A dictionary of MEV builders that should receive the bundle. For each MEV builder, a signature (which can be an empty string) is required.
+	MevBuilders map[string]string `json:"mev_builders,omitempty"`
 
 	// The hex-encoded bytes of the transactions (without 0x prefix)
 	Transactions []string `json:"transaction"`
@@ -31,13 +34,23 @@ type SendBscBundleParams struct {
 	// would be excluded if any transaction reverts.
 	RevertingHashes []string `json:"reverting_hashes,omitempty"`
 
-	// [Optional, default: all]
-	// A dictionary of MEV builders that should receive the bundle. For each MEV builder, a signature (which can be an empty string) is required.
-	MevBuilders map[string]string `json:"mev_builders,omitempty"`
+	UUID string `json:"uuid"`
 
 	// [Optional, default: False]
 	// A boolean indicating whether it is okay to mix the bundle with other bundles and transactions
 	AvoidMixedBundles bool `json:"avoid_mixed_bundles,omitempty"`
+
+	OriginalSenderAccountID string `json:"original_sender_account_id"`
+
+	// From protocol version 45
+	PriorityFeeRefund bool `json:"priority_fee_refund"`
+
+	// From protocol version 48
+	IncomingRefundRecipient string `json:"refund_recipient"`
+
+	// From protocol version 52
+	BlocksCount      int      `json:"blocks_count,omitempty"`
+	DroppingTxHashes []string `json:"dropping_tx_hashes,omitempty"`
 }
 
 type sendBscBundleParams struct {
@@ -49,16 +62,8 @@ type sendBscBundleParams struct {
 // MEV Relays directly connected to BSC validators participating in our MEV solution program.
 func (c *Client) SendBscBundle(ctx context.Context, params *SendBscBundleParams) (*json.RawMessage, error) {
 	sendBscBundleParams := &sendBscBundleParams{
-		SendBscBundleParams: SendBscBundleParams{
-			Transactions:      params.Transactions,
-			BlockNumber:       params.BlockNumber,
-			MinTimestamp:      params.MinTimestamp,
-			MaxTimestamp:      params.MaxTimestamp,
-			RevertingHashes:   params.RevertingHashes,
-			MevBuilders:       params.MevBuilders,
-			AvoidMixedBundles: params.AvoidMixedBundles,
-		},
-		BlockchainNetwork: "BSC-Mainnet",
+		SendBscBundleParams: *params,
+		BlockchainNetwork:   c.blockchainNetwork,
 	}
 
 	return c.handler.Request(ctx, jsonrpc.RPCBundleSubmission, sendBscBundleParams)
