@@ -311,28 +311,6 @@ func (h *wsHandler) handleMessage(ctx context.Context, message []byte) error {
 		if err != nil {
 			err = fmt.Errorf("failed to unmarshal tx receipt notification: %w", err)
 		}
-	case types.UserIntentsFeed:
-		res = &OnIntentsNotification{
-			DappAddress:   string(v.GetStringBytes("params", "result", "dapp_address")),
-			SenderAddress: string(v.GetStringBytes("params", "result", "sender_address")),
-			IntentID:      string(v.GetStringBytes("params", "result", "intent_id")),
-			Intent:        v.GetStringBytes("params", "result", "intent"),
-			Timestamp:     string(v.GetStringBytes("params", "result", "timestamp")),
-		}
-	case types.UserIntentSolutionsFeed:
-		res = &OnIntentSolutionsNotification{
-			IntentID:       string(v.GetStringBytes("params", "result", "intent_id")),
-			IntentSolution: v.GetStringBytes("params", "result", "intent_solution"),
-			SolutionID:     string(v.GetStringBytes("params", "result", "solution_id")),
-		}
-	case types.QuotesFeed:
-		res = &OnQuotesNotification{
-			DappAddress:   string(v.GetStringBytes("params", "result", "dapp_address")),
-			QuoteID:       string(v.GetStringBytes("params", "result", "quote_id")),
-			SolverAddress: string(v.GetStringBytes("params", "result", "solver_address")),
-			Quote:         v.GetStringBytes("params", "result", "quote"),
-			Timestamp:     string(v.GetStringBytes("params", "result", "timestamp")),
-		}
 	}
 
 	subscription.callback(ctx, err, res)

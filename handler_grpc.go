@@ -106,43 +106,10 @@ func (h *grpcHandler) Subscribe(ctx context.Context, feed types.FeedType, req an
 		wrapStream = func() (any, error) {
 			return stream.Recv()
 		}
-	case types.UserIntentsFeed:
-		params := req.(*pb.IntentsRequest)
-		var stream pb.Gateway_IntentsClient
-		stream, err = h.client.Intents(subCtx, params)
-		if err != nil {
-			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
-		}
-		wrapStream = func() (any, error) {
-			return stream.Recv()
-		}
-	case types.UserIntentSolutionsFeed:
-		params := req.(*pb.IntentSolutionsRequest)
-		var stream pb.Gateway_IntentSolutionsClient
-		stream, err = h.client.IntentSolutions(subCtx, params)
-		if err != nil {
-			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
-		}
-		wrapStream = func() (any, error) {
-			return stream.Recv()
-		}
 	case types.TxReceiptsFeed:
 		params := req.(*TxReceiptParams)
 		var stream pb.Gateway_TxReceiptsClient
 		stream, err = h.client.TxReceipts(subCtx, &pb.TxReceiptsRequest{Includes: params.Include})
-		if err != nil {
-			cancel()
-			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
-		}
-		wrapStream = func() (any, error) {
-			return stream.Recv()
-		}
-	case types.QuotesFeed:
-		params := req.(*pb.QuotesRequest)
-		var stream pb.Gateway_QuotesClient
-		stream, err = h.client.Quotes(subCtx, params)
 		if err != nil {
 			cancel()
 			return fmt.Errorf("failed to subscribe to %s: %w", feed, err)
@@ -185,45 +152,6 @@ func (h *grpcHandler) Request(ctx context.Context, method jsonrpc.RPCRequestType
 			return nil, fmt.Errorf("failed to send tx: %w", err)
 		}
 		response = map[string]interface{}{"tx_hash": reply.TxHash}
-	case jsonrpc.RPCSubmitIntent:
-		submitIntentReq, ok := params.(*pb.SubmitIntentRequest)
-		if !ok {
-			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentRequest{}, params)
-		}
-		reply, err := h.client.SubmitIntent(ctx, submitIntentReq)
-		if err != nil {
-			return nil, fmt.Errorf("failed to submit intent: %w", err)
-		}
-		response = map[string]interface{}{"intent_id": reply.IntentId}
-		if reply.FirstSeen != nil {
-			response["first_seen"] = reply.FirstSeen.String()
-		}
-	case jsonrpc.RPCSubmitIntentSolution:
-		submitIntentSolutionReq, ok := params.(*pb.SubmitIntentSolutionRequest)
-		if !ok {
-			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitIntentSolutionRequest{}, params)
-		}
-		reply, err := h.client.SubmitIntentSolution(ctx, submitIntentSolutionReq)
-		if err != nil {
-			return nil, fmt.Errorf("failed to submit intent solution: %w", err)
-		}
-		response = map[string]interface{}{"solution_id": reply.SolutionId}
-		if reply.FirstSeen != nil {
-			response["first_seen"] = reply.FirstSeen.String()
-		}
-	case jsonrpc.RPCSubmitQuote:
-		submitQuoteReq, ok := params.(*pb.SubmitQuoteRequest)
-		if !ok {
-			return nil, fmt.Errorf("failed to cast params: expected %T, got %T", &pb.SubmitQuoteRequest{}, params)
-		}
-		reply, err := h.client.SubmitQuote(ctx, submitQuoteReq)
-		if err != nil {
-			return nil, fmt.Errorf("failed to submit quote: %w", err)
-		}
-		response = map[string]interface{}{"quote_id": reply.QuoteId}
-		if reply.FirstSeen != nil {
-			response["first_seen"] = reply.FirstSeen.String()
-		}
 	default:
 		return nil, fmt.Errorf("%s grpc request is not yet supported", method)
 	}
@@ -360,23 +288,24 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 						BlobGasUsed:      resp.Header.BlobGasUsed,
 						ExcessBlobGas:    resp.Header.ExcessBlobGas,
 					}
-				}
-				if resp.Header.BaseFeePerGas != "" {
-					baseFee, err := strconv.Atoi(resp.Header.BaseFeePerGas)
-					if err != nil {
-						callback(ctx, err, nil)
-						continue
+					if resp.Header.BaseFeePerGas != "" {
+						baseFee, err := strconv.Atoi(resp.Header.BaseFeePerGas)
+						if err != nil {
+							callback(ctx, err, nil)
+							continue
+						}
+						header.BaseFeePerGas = &baseFee
 					}
-					header.BaseFeePerGas = &baseFee
+					if resp.Header.WithdrawalsRoot != "" {
+						withdrawalsRoot := common.BytesToHash([]byte(resp.Header.WithdrawalsRoot))
+						header.WithdrawalsRoot = &withdrawalsRoot
+					}
+					if resp.Header.ParentBeaconRoot != "" {
+						parentBeaconRoot := common.BytesToHash([]byte(resp.Header.ParentBeaconRoot))
+						header.ParentBeaconRoot = &parentBeaconRoot
+					}
 				}
-				if resp.Header.WithdrawalsRoot != "" {
-					withdrawalsRoot := common.BytesToHash([]byte(resp.Header.WithdrawalsRoot))
-					header.WithdrawalsRoot = &withdrawalsRoot
-				}
-				if resp.Header.ParentBeaconRoot != "" {
-					parentBeaconRoot := common.BytesToHash([]byte(resp.Header.ParentBeaconRoot))
-					header.ParentBeaconRoot = &parentBeaconRoot
-				}
+
 				var withdrawals []OnBlockWithdrawal
 				if resp.Withdrawals != nil {
 					withdrawals = make([]OnBlockWithdrawal, len(resp.Withdrawals))
@@ -433,32 +362,6 @@ func (h *grpcHandler) sub(ctx context.Context, cancel context.CancelFunc, f type
 					TxsCount:          resp.TxsCount,
 					BlobGasUsed:       resp.BlobGasUsed,
 					BlobGasPrice:      resp.BlobGasPrice,
-				}
-
-			case types.UserIntentsFeed:
-				resp := rawResult.(*pb.IntentsReply)
-				result = &OnIntentsNotification{
-					DappAddress:   resp.DappAddress,
-					SenderAddress: resp.SenderAddress,
-					IntentID:      resp.IntentId,
-					Intent:        resp.Intent,
-					Timestamp:     resp.Timestamp.String(),
-				}
-			case types.UserIntentSolutionsFeed:
-				resp := rawResult.(*pb.IntentSolutionsReply)
-				result = &OnIntentSolutionsNotification{
-					IntentID:       resp.IntentId,
-					IntentSolution: resp.IntentSolution,
-					SolutionID:     resp.SolutionId,
-				}
-			case types.QuotesFeed:
-				resp := rawResult.(*pb.QuotesReply)
-				result = &OnQuotesNotification{
-					QuoteID:       resp.QuoteId,
-					Quote:         resp.Quote,
-					DappAddress:   resp.DappAddress,
-					SolverAddress: resp.SolverAddress,
-					Timestamp:     resp.Timestamp.String(),
 				}
 			}
 
