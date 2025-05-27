@@ -2,10 +2,12 @@ package bloxroute_sdk_go
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/bloXroute-Labs/gateway/v2/types"
 )
+
+var ErrEmptyParams = errors.New("at least one call_params is required")
 
 // OnBlockParams is the params object for the eth_onBlock subscription
 type OnBlockParams struct {
@@ -89,7 +91,7 @@ func (c *Client) OnBlock(ctx context.Context, params *OnBlockParams, callbackFun
 		return ErrNilParams
 	}
 	if len(params.CallParams) == 0 {
-		return fmt.Errorf("at least one call_params is required")
+		return ErrEmptyParams
 	}
 
 	wrap := func(ctx context.Context, err error, result any) {

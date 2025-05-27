@@ -3,11 +3,14 @@ package bloxroute_sdk_go
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 
-	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+
+	bxtypes "github.com/bloXroute-Labs/bxcommon-go/types"
 )
+
+var ErrNextValidatorOnMainnet = errors.New("NextValidator is not supported on Ethereum Mainnet")
 
 // SendTxParams are the parameters for sending transactions faster with
 // bloxroute & configuring semi-private transactions
@@ -50,8 +53,8 @@ func (c *Client) SendTx(ctx context.Context, params *SendTxParams) (*json.RawMes
 	}
 
 	// error if the user is using mainnet and next validator
-	if params.BlockchainNetwork == bxgateway.Mainnet && params.NextValidator {
-		return nil, fmt.Errorf("NextValidator is not supported on Ethereum Mainnet")
+	if params.BlockchainNetwork == bxtypes.Mainnet && params.NextValidator {
+		return nil, ErrNextValidatorOnMainnet
 	}
 
 	return c.handler.Request(ctx, jsonrpc.RPCTx, params)
