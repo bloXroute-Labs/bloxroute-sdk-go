@@ -7,21 +7,6 @@ import (
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
 )
 
-// BlockchainNetwork       string            `json:"blockchain_network"`
-//	MEVBuilders             map[string]string `json:"mev_builders"`
-//	Transaction             []string          `json:"transaction"`
-//	BlockNumber             string            `json:"block_number"`
-//	MinTimestamp            int               `json:"min_timestamp"`
-//	MaxTimestamp            int               `json:"max_timestamp"`
-//	RevertingHashes         []string          `json:"reverting_hashes"`
-//	UUID                    string            `json:"uuid"`
-//	AvoidMixedBundles       bool              `json:"avoid_mixed_bundles,omitempty"`
-//	OriginalSenderAccountID string            `json:"original_sender_account_id"`
-//	PriorityFeeRefund       bool              `json:"priority_fee_refund"`
-//	IncomingRefundRecipient string            `json:"refund_recipient,omitempty"`
-//	BlocksCount             int               `json:"blocks_count,omitempty"`
-//	DroppingTxHashes        []string          `json:"dropping_tx_hashes,omitempty"`
-
 // SendBscBundleParams is the parameters for sending a bundle of transactions
 type SendBscBundleParams struct {
 	// [Optional, default: all]
