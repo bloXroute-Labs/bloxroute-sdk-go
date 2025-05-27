@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"github.com/bloXroute-Labs/gateway/v2/jsonrpc"
+
+	bxtypes "github.com/bloXroute-Labs/bxcommon-go/types"
 )
 
 // SendPrivateTxParams are the parameters for sending private transactions with bloxroute.
@@ -45,7 +46,7 @@ func (c *Client) SendPrivateTx(ctx context.Context, params *SendPrivateTxParams)
 
 	requestType := jsonrpc.RPCPrivateTx
 
-	if c.blockchainNetwork != bxgateway.Mainnet {
+	if c.blockchainNetwork != bxtypes.Mainnet {
 		// if any other params are set, error
 		if params.MevBuilders != nil || params.Frontrunning || params.Timeout != 0 {
 			return nil, fmt.Errorf("only the 'Transaction' field is supported for %s", c.blockchainNetwork)

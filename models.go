@@ -33,25 +33,26 @@ type NewTxNotification struct {
 
 // NewTxNotificationTxContents is the transaction contents object for new transactions
 type NewTxNotificationTxContents struct {
-	AccessList           types.AccessList `json:"accessList"`
-	ChainId              string           `json:"chainId"`
-	From                 string           `json:"from"`
-	Gas                  string           `json:"gas"`
-	GasPrice             string           `json:"gasPrice"`
-	Hash                 string           `json:"hash"`
-	Input                string           `json:"input"`
-	MaxFeePerGas         string           `json:"maxFeePerGas"`
-	MaxFeePerBlobGas     string           `json:"maxFeePerBlobGas"`
-	MaxPriorityFeePerGas string           `json:"maxPriorityFeePerGas"`
-	Nonce                string           `json:"nonce"`
-	R                    string           `json:"r"`
-	S                    string           `json:"s"`
-	To                   string           `json:"to"`
-	Type                 string           `json:"type"`
-	V                    string           `json:"v"`
-	Value                string           `json:"value"`
-	BlobVersionedHashes  []string         `json:"blobVersionedHashes"`
-	YParity              string           `json:"yParity"`
+	AccessList           types.AccessList             `json:"accessList"`
+	ChainId              string                       `json:"chainId"`
+	From                 string                       `json:"from"`
+	Gas                  string                       `json:"gas"`
+	GasPrice             string                       `json:"gasPrice"`
+	Hash                 string                       `json:"hash"`
+	Input                string                       `json:"input"`
+	MaxFeePerGas         string                       `json:"maxFeePerGas"`
+	MaxFeePerBlobGas     string                       `json:"maxFeePerBlobGas"`
+	MaxPriorityFeePerGas string                       `json:"maxPriorityFeePerGas"`
+	Nonce                string                       `json:"nonce"`
+	R                    string                       `json:"r"`
+	S                    string                       `json:"s"`
+	To                   string                       `json:"to"`
+	Type                 string                       `json:"type"`
+	V                    string                       `json:"v"`
+	Value                string                       `json:"value"`
+	BlobVersionedHashes  []string                     `json:"blobVersionedHashes"`
+	YParity              string                       `json:"yParity"`
+	AuthList             []types.SetCodeAuthorization `json:"authorizationList"`
 }
 
 // OnTxStatusNotification represents status of a transaction

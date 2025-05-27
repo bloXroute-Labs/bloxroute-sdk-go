@@ -8,9 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	bxgateway "github.com/bloXroute-Labs/gateway/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	bxtypes "github.com/bloXroute-Labs/bxcommon-go/types"
 
 	"github.com/bloXroute-Labs/bloxroute-sdk-go/connection/ws"
 )
@@ -128,7 +129,7 @@ func (c *Config) setDefaults() {
 	}
 
 	if c.BlockchainNetwork == "" {
-		c.BlockchainNetwork = bxgateway.Mainnet
+		c.BlockchainNetwork = bxtypes.Mainnet
 	}
 
 	if len(c.GRPCDialOptions) == 0 {
