@@ -36,7 +36,7 @@ func testConfig(t *testing.T, url testURL) *Config {
 	return c
 }
 
-// contextWithSignal returns a context that is cancelled when the process receives the given termination signal.
+// contextWithSignal returns a context that is canceled when the process receives the given termination signal.
 func contextWithSignal(parent context.Context, s ...os.Signal) context.Context {
 	if len(s) == 0 {
 		s = []os.Signal{syscall.SIGTERM, syscall.SIGINT}
@@ -46,7 +46,7 @@ func contextWithSignal(parent context.Context, s ...os.Signal) context.Context {
 	signal.Notify(c, s...)
 
 	go func() {
-		// wait for either the signal, or for the context to be cancelled
+		// wait for either the signal, or for the context to be canceled
 		select {
 		case <-c:
 		case <-parent.Done():
